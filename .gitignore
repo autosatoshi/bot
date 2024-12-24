@@ -1,0 +1,6 @@
+
+/.vs
+*.Development.json
+/src/Backend/bin/Debug
+/src/Backend/obj
+*.user
