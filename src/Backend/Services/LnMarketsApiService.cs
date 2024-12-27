@@ -112,11 +112,11 @@
             return data.ToList();
         }
 
-        public async Task<IEnumerable<FuturesTradeModel>> FuturesGetOpenTradesAsync(string key, string passphrase, string secret, long from, long to, int limit = 1000)
+        public async Task<IEnumerable<FuturesTradeModel>> FuturesGetOpenTradesAsync(string key, string passphrase, string secret)
         {
             var method = "GET";
             var path = "/v2/futures";
-            var @params = $"type=open&from={from}&to={to}&limit={limit}";
+            var @params = $"type=open";
             var timestamp = GetUtcNowInUnixTimestamp();
 
             using var client = GetLnMarketsHttpClient(key, passphrase, GetSignature(secret, $"{timestamp}{method}{path}{@params}"), timestamp);
@@ -124,7 +124,7 @@
             return data.ToList();
         }
 
-        public async Task<IEnumerable<FuturesTradeModel>> FuturesGetRunningTradesAsync(string key, string passphrase, string secret, long from, long to, int limit = 1000)
+        public async Task<IEnumerable<FuturesTradeModel>> FuturesGetRunningTradesAsync(string key, string passphrase, string secret)
         {
             var method = "GET";
             var path = "/v2/futures";
