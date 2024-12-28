@@ -86,10 +86,19 @@
             using var scope = _scopeFactory.CreateScope();
 
             var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>() ?? throw new ArgumentNullException();
+
             var key = configuration.GetValue<string>("ln:key") ?? throw new ArgumentNullException();
             var passphrase = configuration.GetValue<string>("ln:passphrase") ?? throw new ArgumentNullException();
             var secret = configuration.GetValue<string>("ln:secret") ?? throw new ArgumentNullException();
             var pause = configuration.GetValue<bool>("ln:pause");
+            var quantity = configuration.GetValue<int>("ln:quantity");
+            var leverage = configuration.GetValue<int>("ln:leverage");
+            var takeprofit = configuration.GetValue<int>("ln:takeprofit");
+            var maxTakeprofitPrice = configuration.GetValue<int>("ln:maxTakeprofitPrice");
+            var maxRunningTrades = configuration.GetValue<int>("ln:maxRunningTrades");
+            var factor = configuration.GetValue<int>("ln:factor");
+            var addMarginInUsd = configuration.GetValue<int>("ln:addMarginInUsd");
+            var maxLossInPercent = configuration.GetValue<int>("ln:maxLossInPercent");
 
             var apiService = scope.ServiceProvider.GetService<ILnMarketsApiService>() ?? throw new NullReferenceException();
 
@@ -99,28 +108,25 @@
 
             var btcInSat = 100000000;
 
-            var addMarginInUsd = 0;
+            var addedMarginInUsd = 0;
             var runningTrades = await apiService.FuturesGetRunningTradesAsync(key, passphrase, secret);
             foreach (var runningTrade in runningTrades)
             {
                 var loss = (runningTrade.pl / runningTrade.margin) * 100;
-                if (loss <= -50)
+                if (loss <= maxLossInPercent)
                 {
                     var margin = Math.Round(btcInSat / messageAsLastPriceDTO.LastPrice);
                     var maxMargin = (btcInSat / runningTrade.price) * runningTrade.quantity;
                     if (margin + runningTrade.margin > maxMargin)
-                    {
                         margin = maxMargin - runningTrade.margin;
-                    }
 
-                    _ = await apiService.AddMargin(key, passphrase, secret, runningTrade.id, margin * 3);
-                    addMarginInUsd += 3;
+                    _ = await apiService.AddMargin(key, passphrase, secret, runningTrade.id, margin * addMarginInUsd);
+                    addedMarginInUsd += addMarginInUsd;
                 }
             }
-            if (addMarginInUsd > 0 && user.synthetic_usd_balance > addMarginInUsd)
-                _ = await apiService.SwapUsdInBtc(key, passphrase, secret, addMarginInUsd);
+            if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
+                _ = await apiService.SwapUsdInBtc(key, passphrase, secret, addedMarginInUsd);
 
-            var factor = runningTrades.Count() <= 9 ? 250 : 500;
             var tradePrice = Math.Floor(messageAsLastPriceDTO.LastPrice / factor) * factor;
             var currentTrade = runningTrades.Where(x => x.price == tradePrice).FirstOrDefault();
             var oneUsdInSats = btcInSat / messageAsLastPriceDTO.LastPrice;
@@ -130,15 +136,14 @@
                 + runningTrades.Select(x => ((btcInSat / x.price) * x.quantity)
                 + x.maintenance_margin).Sum());
             var freeMargin = user.balance - realMargin;
-            if (currentTrade == null && runningTrades.Count() <= 19 && freeMargin > oneUsdInSats && !pause)
+            if (currentTrade == null && runningTrades.Count() <= maxRunningTrades && freeMargin > oneUsdInSats && !pause)
             {
                 var openTrade = openTrades.Where(x => x.price == tradePrice).FirstOrDefault();
-                if (openTrade is null && tradePrice + 1500 < 110000)
+                if (openTrade is null && tradePrice + takeprofit < maxTakeprofitPrice)
                 {
                     foreach (var oldTrade in openTrades)
                         _ = await apiService.Cancel(key, passphrase, secret, oldTrade.id);
-
-                    _ = await apiService.CreateLimitBuyOrder(key, passphrase, secret, tradePrice, tradePrice + (1500), 80, 270);
+                    _ = await apiService.CreateLimitBuyOrder(key, passphrase, secret, tradePrice, tradePrice + takeprofit, leverage, quantity);
                 }
             }
 
