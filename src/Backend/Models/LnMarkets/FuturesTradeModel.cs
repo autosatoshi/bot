@@ -30,15 +30,15 @@
 
         public decimal takeprofit { get; set; }
 
-        public decimal exit_price { get; set; }
+        public decimal? exit_price { get; set; }
 
         public decimal pl { get; set; }
 
         public long creation_ts { get; set; }
 
-        public long market_filled_ts { get; set; }
+        public long? market_filled_ts { get; set; }
 
-        public long closed_ts { get; set; }
+        public long? closed_ts { get; set; }
 
         public bool open { get; set; }
 
