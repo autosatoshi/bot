@@ -97,7 +97,7 @@
             var maxTakeprofitPrice = configuration.GetValue<int>("ln:maxTakeprofitPrice");
             var maxRunningTrades = configuration.GetValue<int>("ln:maxRunningTrades");
             var factor = configuration.GetValue<int>("ln:factor");
-            var addMarginInUsd = configuration.GetValue<int>("ln:addMarginInUsd");
+            var addMarginInUsd = configuration.GetValue<decimal>("ln:addMarginInUsd");
             var maxLossInPercent = configuration.GetValue<int>("ln:maxLossInPercent");
 
             var apiService = scope.ServiceProvider.GetService<ILnMarketsApiService>() ?? throw new NullReferenceException();
@@ -108,7 +108,7 @@
 
             var btcInSat = 100000000;
 
-            var addedMarginInUsd = 0;
+            var addedMarginInUsd = 0m;
             var runningTrades = await apiService.FuturesGetRunningTradesAsync(key, passphrase, secret);
             foreach (var runningTrade in runningTrades)
             {
@@ -120,12 +120,13 @@
                     if (margin + runningTrade.margin > maxMargin)
                         margin = maxMargin - runningTrade.margin;
 
-                    _ = await apiService.AddMargin(key, passphrase, secret, runningTrade.id, margin * addMarginInUsd);
+                    var amount = (int)(margin * addMarginInUsd);
+                    _ = await apiService.AddMargin(key, passphrase, secret, runningTrade.id, amount);
                     addedMarginInUsd += addMarginInUsd;
                 }
             }
             if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
-                _ = await apiService.SwapUsdInBtc(key, passphrase, secret, addedMarginInUsd);
+                _ = await apiService.SwapUsdInBtc(key, passphrase, secret, (int)addedMarginInUsd);
 
             var tradePrice = Math.Floor(messageAsLastPriceDTO.LastPrice / factor) * factor;
             var currentTrade = runningTrades.Where(x => x.price == tradePrice).FirstOrDefault();
