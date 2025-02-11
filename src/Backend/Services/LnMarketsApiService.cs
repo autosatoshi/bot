@@ -9,7 +9,7 @@
     {
         private readonly string _lnMarketsEndpoint = "https://api.lnmarkets.com";
 
-        public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, decimal amount)
+        public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, int amount)
         {
             var method = "POST";
             var path = "/v2/futures/add-margin";
