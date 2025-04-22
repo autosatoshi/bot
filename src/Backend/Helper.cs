@@ -11,5 +11,10 @@
             dateTime = dateTime.AddMilliseconds(timeStamp).ToLocalTime();
             return dateTime;
         }
+        
+        public static DateTime TimeStampToDateTime(this string timeStamp)
+        {
+            return DateTime.Parse(timeStamp);
+        }
     }
 }
