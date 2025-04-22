@@ -5,7 +5,7 @@
     public class LastPriceData
     {
         [JsonPropertyName("time")]
-        public long Time { get; set; }
+        public string? Time { get; set; }
 
         [JsonPropertyName("lastPrice")]
         public decimal LastPrice { get; set; }
