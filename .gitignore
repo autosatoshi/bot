@@ -4,3 +4,4 @@
 /src/Backend/bin/Debug
 /src/Backend/obj
 *.user
+/.vscode
