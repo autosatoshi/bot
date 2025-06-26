@@ -13,17 +13,13 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var method = "POST";
             var path = "/v2/futures/add-margin";
-            var @params = $"{{" +
-                $"\"id\":\"{id}\"," +
-                $"\"amount\":{amount}" +
-                $"}}";
+            var @params = $$"""{"id":"{{id}}","amount":{{amount}}}""";
             var timestamp = GetUtcNowInUnixTimestamp();
 
             using var client = GetLnMarketsHttpClient(key, passphrase, GetSignature(secret, $"{timestamp}{method}{path}{@params}"), timestamp);
             var content = new StringContent(@params, Encoding.UTF8, "application/json");
             var response = await client.PostAsync($"{_lnMarketsEndpoint}{path}", content);
             var responseContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(responseContent);
             return response.IsSuccessStatusCode;
         }
 
@@ -45,14 +41,7 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var method = "POST";
             var path = "/v2/futures";
-            var @params = $"{{" +
-                $"\"side\":\"b\"," +
-                $"\"type\":\"l\"," +
-                $"\"price\":{price}," +
-                $"\"takeprofit\":{takeprofit}," +
-                $"\"leverage\":{leverage}," +
-                $"\"quantity\":{quantity.ToString(CultureInfo.InvariantCulture)}" +
-                $"}}";
+            var @params = $$"""{"side":"b","type":"l","price":{{price}},"takeprofit":{{takeprofit}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
             var timestamp = GetUtcNowInUnixTimestamp();
 
             using var client = GetLnMarketsHttpClient(key, passphrase, GetSignature(secret, $"{timestamp}{method}{path}{@params}"), timestamp);
@@ -66,18 +55,14 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var method = "POST";
             var path = "/v2/swap";
-            var @params = "{" + @"""in_asset"":""BTC"",""out_asset"":""USD"",""in_amount"":2000}";
-            Console.WriteLine(@params);
+            var @params = """{"in_asset":"BTC","out_asset":"USD","in_amount":2000}""";
             var timestamp = GetUtcNowInUnixTimestamp();
             var sigPayload = $"{timestamp}{method}{path}{@params}";
-            Console.WriteLine(sigPayload);
 
             using var client = GetLnMarketsHttpClient(key, passphrase, GetSignature(secret, sigPayload), timestamp);
             var content = new StringContent(@params, Encoding.UTF8, "application/json");
-            Console.WriteLine(await content.ReadAsStringAsync());
             var response = await client.PostAsync($"{_lnMarketsEndpoint}{path}", content);
             var responseContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(responseContent);
             return response.IsSuccessStatusCode;
         }
 
@@ -85,18 +70,14 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var method = "POST";
             var path = "/v2/swap";
-            var @params = "{" + @"""in_asset"":""USD"",""out_asset"":""BTC"",""in_amount"":" + amount + "}";
-            Console.WriteLine(@params);
+            var @params = $$"""{"in_asset":"USD","out_asset":"BTC","in_amount":{{amount}}}""";
             var timestamp = GetUtcNowInUnixTimestamp();
             var sigPayload = $"{timestamp}{method}{path}{@params}";
-            Console.WriteLine(sigPayload);
 
             using var client = GetLnMarketsHttpClient(key, passphrase, GetSignature(secret, sigPayload), timestamp);
             var content = new StringContent(@params, Encoding.UTF8, "application/json");
-            Console.WriteLine(await content.ReadAsStringAsync());
             var response = await client.PostAsync($"{_lnMarketsEndpoint}{path}", content);
             var responseContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(responseContent);
             return response.IsSuccessStatusCode;
         }
 
@@ -104,7 +85,7 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var method = "GET";
             var path = "/v2/futures";
-            var @params = $"type=closed&limit=1000";
+            var @params = "type=closed&limit=1000";
             var timestamp = GetUtcNowInUnixTimestamp();
 
             using var client = GetLnMarketsHttpClient(key, passphrase, GetSignature(secret, $"{timestamp}{method}{path}{@params}"), timestamp);
@@ -155,7 +136,8 @@ public class LnMarketsApiService : ILnMarketsApiService
             var timestamp = GetUtcNowInUnixTimestamp();
 
             using var client = GetLnMarketsHttpClient(key, passphrase, GetSignature(secret, $"{timestamp}{method}{path}"), timestamp);
-            var data2 = await client.GetFromJsonAsync<UserModel>($"{_lnMarketsEndpoint}{path}?") ?? throw new Exception();
+            var data2 = await client.GetFromJsonAsync<UserModel>($"{_lnMarketsEndpoint}{path}?") ?? 
+                throw new InvalidOperationException("Failed to retrieve user data from LN Markets API");
             return data2;
         }
 

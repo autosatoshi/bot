@@ -2,13 +2,13 @@
 
 public class FuturesTradeModel
     {
-        public string id { get; set; }
+        public required string id { get; set; }
 
-        public string uid { get; set; }
+        public required string uid { get; set; }
 
-        public string type { get; set; }
+        public required string type { get; set; }
 
-        public string side { get; set; }
+        public required string side { get; set; }
 
         public decimal opening_fee { get; set; }
 

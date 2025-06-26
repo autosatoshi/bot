@@ -1,4 +1,5 @@
-﻿using System.Net.WebSockets;
+﻿using System.Buffers;
+using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using AutoBot.Models;
@@ -63,40 +64,46 @@ public class LnMarketsBackgroundService(IServiceScopeFactory scopeFactory, ILogg
 
         private async Task ReceiveMessagesAsync(ClientWebSocket webSocket, CancellationToken stoppingToken)
         {
-            var buffer = new byte[Constants.WebSocketBufferSize];
-
-            var lastPrice = 0m;
-            var lastCall = DateTime.UtcNow;
-            while (webSocket.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
+            var buffer = ArrayPool<byte>.Shared.Rent(Constants.WebSocketBufferSize);
+            try
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), stoppingToken);
-                switch (result.MessageType)
+                var lastPrice = 0m;
+                var lastCall = DateTime.UtcNow;
+                while (webSocket.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
                 {
-                    case WebSocketMessageType.Close:
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, stoppingToken);
-                        break;
-                    case WebSocketMessageType.Text:
-                        var textMessageResult = await HandleWsTextMessage(buffer, result, lastPrice, lastCall);
-                        if (textMessageResult != null)
-                        {
-                            lastPrice = textMessageResult.Item1;
-                            lastCall = textMessageResult.Item2;
-                        }
-                        break;
-                    default:
-                        break;
+                    var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), stoppingToken);
+                    switch (result.MessageType)
+                    {
+                        case WebSocketMessageType.Close:
+                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, stoppingToken);
+                            break;
+                        case WebSocketMessageType.Text:
+                            var textMessageResult = await HandleWsTextMessage(buffer, result, lastPrice, lastCall);
+                            if (textMessageResult != null)
+                            {
+                                lastPrice = textMessageResult.Value.Price;
+                                lastCall = textMessageResult.Value.Timestamp;
+                            }
+                            break;
+                        default:
+                            break;
+                    }
                 }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 
-        private async Task<Tuple<decimal, DateTime>?> HandleWsTextMessage(byte[] buffer, WebSocketReceiveResult result, decimal lastPrice, DateTime lastCall)
+        private async Task<(decimal Price, DateTime Timestamp)?> HandleWsTextMessage(byte[] buffer, WebSocketReceiveResult result, decimal lastPrice, DateTime lastCall)
         {
             var messageAsString = Encoding.UTF8.GetString(buffer, 0, result.Count);
             var messageAsLastPriceDTO = ParseMessage(messageAsString);
             if (messageAsLastPriceDTO is null)
                 return null;
 
-            var messageTimeDifference = DateTime.Now - messageAsLastPriceDTO.Time.TimeStampToDateTime();
+            var messageTimeDifference = DateTime.Now - (messageAsLastPriceDTO.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
             if (messageTimeDifference >= TimeSpan.FromSeconds(Constants.MessageTimeoutSeconds))
                 return null;
 
@@ -112,7 +119,8 @@ public class LnMarketsBackgroundService(IServiceScopeFactory scopeFactory, ILogg
             var optionsMonitor = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<LnMarketsOptions>>();
             var options = optionsMonitor.CurrentValue;
 
-            var apiService = scope.ServiceProvider.GetService<ILnMarketsApiService>() ?? throw new NullReferenceException();
+            var apiService = scope.ServiceProvider.GetService<ILnMarketsApiService>() ?? 
+                throw new InvalidOperationException("ILnMarketsApiService not registered in DI container");
 
             var user = await apiService.GetUser(options.Key, options.Passphrase, options.Secret);
             if (user.balance == 0)
@@ -160,7 +168,7 @@ public class LnMarketsBackgroundService(IServiceScopeFactory scopeFactory, ILogg
                 }
             }
 
-            return new Tuple<decimal, DateTime>(price, DateTime.UtcNow);
+            return (price, DateTime.UtcNow);
         }
 
         private LastPriceData? ParseMessage(string jsonMessage)
@@ -170,7 +178,7 @@ public class LnMarketsBackgroundService(IServiceScopeFactory scopeFactory, ILogg
             {
                 case "JsonRpcSubscription":
                     var subscription = JsonSerializer.Deserialize<JsonRpcSubscription>(jsonMessage);
-                    return HandleJsonRpcSubscription(subscription);
+                    return subscription != null ? HandleJsonRpcSubscription(subscription) : null;
                 case "JsonRpcResponse":
                 default:
                     return null;

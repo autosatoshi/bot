@@ -5,11 +5,11 @@ namespace AutoBot.Models.LnMarkets;
 public class JsonRpcSubscription
     {
         [JsonPropertyName("method")]
-        public string Method { get; set; }
+        public required string Method { get; set; }
 
         [JsonPropertyName("params")]
-        public SubscriptionParams Params { get; set; }
+        public required SubscriptionParams Params { get; set; }
 
         [JsonPropertyName("jsonrpc")]
-        public string JsonRpc { get; set; }
+        public required string JsonRpc { get; set; }
     }

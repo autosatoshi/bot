@@ -11,5 +11,5 @@ public class LastPriceData
         public decimal LastPrice { get; set; }
 
         [JsonPropertyName("lastTickDirection")]
-        public string LastTickDirection { get; set; }
+        public required string LastTickDirection { get; set; }
     }
