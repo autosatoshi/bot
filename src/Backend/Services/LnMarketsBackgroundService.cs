@@ -103,7 +103,7 @@ public class LnMarketsBackgroundService(IServiceScopeFactory scopeFactory, ILogg
             if (messageAsLastPriceDTO is null)
                 return null;
 
-            var messageTimeDifference = DateTime.Now - (messageAsLastPriceDTO.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
+            var messageTimeDifference = DateTime.UtcNow - (messageAsLastPriceDTO.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
             if (messageTimeDifference >= TimeSpan.FromSeconds(Constants.MessageTimeoutSeconds))
                 return null;
 
