@@ -1,6 +1,6 @@
-﻿namespace AutoBot.Models.LnMarkets
-{
-    public class FuturesTradeModel
+﻿namespace AutoBot.Models.LnMarkets;
+
+public class FuturesTradeModel
     {
         public string id { get; set; }
 
@@ -52,4 +52,3 @@
 
         public decimal sum_carry_fees { get; set; }
     }
-}

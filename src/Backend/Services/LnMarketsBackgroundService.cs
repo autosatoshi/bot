@@ -1,15 +1,30 @@
-﻿namespace AutoBot.Services
-{
-    using System.Net.WebSockets;
-    using System.Text;
-    using System.Text.Json;
-    using System;
-    using AutoBot.Models.LnMarkets;
+﻿using System.Net.WebSockets;
+using System.Text;
+using System.Text.Json;
+using AutoBot.Models;
+using AutoBot.Models.LnMarkets;
+using Microsoft.Extensions.Options;
 
-    public class LnMarketsBackgroundService(IServiceScopeFactory scopeFactory) : BackgroundService
+namespace AutoBot.Services;
+
+public class LnMarketsBackgroundService(IServiceScopeFactory scopeFactory, ILogger<LnMarketsBackgroundService> logger) : BackgroundService
     {
+        private static class Constants
+        {
+            public const int ReconnectDelaySeconds = 15;
+            public const int WebSocketBufferSize = 1024 * 4;
+            public const int MessageTimeoutSeconds = 5;
+            public const decimal PriceRoundingFactor = 50m;
+            public const int MinCallIntervalSeconds = 10;
+            public const int SatoshisPerBitcoin = 100_000_000;
+            public const string JsonRpcVersion = "2.0";
+            public const string SubscribeMethod = "v1/public/subscribe";
+            public const string FuturesChannel = "futures:btc_usd:last-price";
+        }
+
         private readonly Uri _serverUri = new("wss://api.lnmarkets.com");
         private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
+        private readonly ILogger<LnMarketsBackgroundService> _logger = logger;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -21,25 +36,34 @@
                 {
                     await webSocket.ConnectAsync(_serverUri, stoppingToken);
 
-                    var payload = $"{{\"jsonrpc\":\"2.0\",\"id\":\"{Guid.NewGuid()}\",\"method\":\"v1/public/subscribe\",\"params\":[\"futures:btc_usd:last-price\"]}}";
+                    var payload = $"{{\"jsonrpc\":\"{Constants.JsonRpcVersion}\",\"id\":\"{Guid.NewGuid()}\",\"method\":\"{Constants.SubscribeMethod}\",\"params\":[\"{Constants.FuturesChannel}\"]}}";
                     var messageBuffer = Encoding.UTF8.GetBytes(payload);
                     var segment = new ArraySegment<byte>(messageBuffer);
 
                     await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, stoppingToken);
                     await ReceiveMessagesAsync(webSocket, stoppingToken);
                 }
+                catch (WebSocketException wsEx)
+                {
+                    _logger.LogWarning(wsEx, "WebSocket connection failed, retrying in {DelaySeconds}s", Constants.ReconnectDelaySeconds);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("Background service stopping due to cancellation");
+                    break;
+                }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex);
+                    _logger.LogError(ex, "Unexpected error in background service");
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(Constants.ReconnectDelaySeconds), stoppingToken);
             }
         }
 
         private async Task ReceiveMessagesAsync(ClientWebSocket webSocket, CancellationToken stoppingToken)
         {
-            var buffer = new byte[1024 * 4];
+            var buffer = new byte[Constants.WebSocketBufferSize];
 
             var lastPrice = 0m;
             var lastCall = DateTime.UtcNow;
@@ -73,78 +97,66 @@
                 return null;
 
             var messageTimeDifference = DateTime.Now - messageAsLastPriceDTO.Time.TimeStampToDateTime();
-            if (messageTimeDifference >= TimeSpan.FromSeconds(5))
+            if (messageTimeDifference >= TimeSpan.FromSeconds(Constants.MessageTimeoutSeconds))
                 return null;
 
-            var price = Math.Floor(messageAsLastPriceDTO.LastPrice / 50) * 50;
+            var price = Math.Floor(messageAsLastPriceDTO.LastPrice / Constants.PriceRoundingFactor) * Constants.PriceRoundingFactor;
             if (price == lastPrice)
                 return null;
 
-            if ((DateTime.UtcNow - lastCall).TotalSeconds < 10)
+            if ((DateTime.UtcNow - lastCall).TotalSeconds < Constants.MinCallIntervalSeconds)
                 return null;
 
             using var scope = _scopeFactory.CreateScope();
 
-            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>() ?? throw new ArgumentNullException();
-
-            var key = configuration.GetValue<string>("ln:key") ?? throw new ArgumentNullException();
-            var passphrase = configuration.GetValue<string>("ln:passphrase") ?? throw new ArgumentNullException();
-            var secret = configuration.GetValue<string>("ln:secret") ?? throw new ArgumentNullException();
-            var pause = configuration.GetValue<bool>("ln:pause");
-            var quantity = configuration.GetValue<int>("ln:quantity");
-            var leverage = configuration.GetValue<int>("ln:leverage");
-            var takeprofit = configuration.GetValue<int>("ln:takeprofit");
-            var maxTakeprofitPrice = configuration.GetValue<int>("ln:maxTakeprofitPrice");
-            var maxRunningTrades = configuration.GetValue<int>("ln:maxRunningTrades");
-            var factor = configuration.GetValue<int>("ln:factor");
-            var addMarginInUsd = configuration.GetValue<decimal>("ln:addMarginInUsd");
-            var maxLossInPercent = configuration.GetValue<int>("ln:maxLossInPercent");
+            var optionsMonitor = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<LnMarketsOptions>>();
+            var options = optionsMonitor.CurrentValue;
 
             var apiService = scope.ServiceProvider.GetService<ILnMarketsApiService>() ?? throw new NullReferenceException();
 
-            var user = await apiService.GetUser(key, passphrase, secret);
+            var user = await apiService.GetUser(options.Key, options.Passphrase, options.Secret);
             if (user.balance == 0)
                 return null;
 
-            var btcInSat = 100000000;
+            var btcInSat = Constants.SatoshisPerBitcoin;
 
             var addedMarginInUsd = 0m;
-            var runningTrades = await apiService.FuturesGetRunningTradesAsync(key, passphrase, secret);
+            var runningTrades = await apiService.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
             foreach (var runningTrade in runningTrades)
             {
                 var loss = (runningTrade.pl / runningTrade.margin) * 100;
-                if (loss <= maxLossInPercent)
+                if (loss <= options.MaxLossInPercent)
                 {
                     var margin = Math.Round(btcInSat / messageAsLastPriceDTO.LastPrice);
                     var maxMargin = (btcInSat / runningTrade.price) * runningTrade.quantity;
                     if (margin + runningTrade.margin > maxMargin)
                         margin = maxMargin - runningTrade.margin;
 
-                    var amount = (int)(margin * addMarginInUsd);
-                    _ = await apiService.AddMargin(key, passphrase, secret, runningTrade.id, amount);
-                    addedMarginInUsd += addMarginInUsd;
+                    var amount = (int)(margin * options.AddMarginInUsd);
+                    _ = await apiService.AddMargin(options.Key, options.Passphrase, options.Secret, runningTrade.id, amount);
+                    addedMarginInUsd += options.AddMarginInUsd;
                 }
             }
             if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
-                _ = await apiService.SwapUsdInBtc(key, passphrase, secret, (int)addedMarginInUsd);
+                _ = await apiService.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)addedMarginInUsd);
 
-            var tradePrice = Math.Floor(messageAsLastPriceDTO.LastPrice / factor) * factor;
+            var tradePrice = Math.Floor(messageAsLastPriceDTO.LastPrice / options.Factor) * options.Factor;
             var currentTrade = runningTrades.Where(x => x.price == tradePrice).FirstOrDefault();
             var oneUsdInSats = btcInSat / messageAsLastPriceDTO.LastPrice;
-            var openTrades = await apiService.FuturesGetOpenTradesAsync(key, passphrase, secret);
+            var openTrades = await apiService.FuturesGetOpenTradesAsync(options.Key, options.Passphrase, options.Secret);
             var realMargin = Math.Round(openTrades.Select(x => ((btcInSat / x.price) * x.quantity)
                 + x.maintenance_margin).Sum()
                 + runningTrades.Select(x => ((btcInSat / x.price) * x.quantity)
                 + x.maintenance_margin).Sum());
             var freeMargin = user.balance - realMargin;
-            if (currentTrade == null && runningTrades.Count() <= maxRunningTrades && freeMargin > oneUsdInSats && !pause)
+            if (currentTrade == null && runningTrades.Count() <= options.MaxRunningTrades && freeMargin > oneUsdInSats && !options.Pause)
             {
                 var openTrade = openTrades.Where(x => x.price == tradePrice).FirstOrDefault();
-                if (openTrade is null && tradePrice + takeprofit < maxTakeprofitPrice)
+                if (openTrade is null && tradePrice + options.Takeprofit < options.MaxTakeprofitPrice)
                 {
                     foreach (var oldTrade in openTrades)
-                        _ = await apiService.Cancel(key, passphrase, secret, oldTrade.id);
-                    _ = await apiService.CreateLimitBuyOrder(key, passphrase, secret, tradePrice, tradePrice + takeprofit, leverage, quantity);
+                        _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
+                    _ = await apiService.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, tradePrice, tradePrice + options.Takeprofit, options.Leverage, options.Quantity);
                 }
             }
 
@@ -180,4 +192,3 @@
             return JsonSerializer.Deserialize<LastPriceData>(subscription.Params.Data.GetRawText());
         }
     }
-}

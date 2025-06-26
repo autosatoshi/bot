@@ -1,6 +1,6 @@
-﻿namespace AutoBot
-{
-    public static class Helper
+﻿namespace AutoBot;
+
+public static class Helper
     {
         public static long ToUnixTimeInMilliseconds(this DateTime dateTime)
             => (long)dateTime.Subtract(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
@@ -17,4 +17,3 @@
             return DateTime.Parse(timeStamp);
         }
     }
-}

@@ -1,11 +1,11 @@
-﻿namespace AutoBot.Services
-{
-    using AutoBot.Models.LnMarkets;
-    using System.Globalization;
-    using System.Security.Cryptography;
-    using System.Text;
+﻿using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using AutoBot.Models.LnMarkets;
 
-    public class LnMarketsApiService : ILnMarketsApiService
+namespace AutoBot.Services;
+
+public class LnMarketsApiService : ILnMarketsApiService
     {
         private readonly string _lnMarketsEndpoint = "https://api.lnmarkets.com";
 
@@ -192,4 +192,3 @@
 
         private static long GetUtcNowInUnixTimestamp() => (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
     }
-}

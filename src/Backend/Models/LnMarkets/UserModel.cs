@@ -1,6 +1,6 @@
-﻿namespace AutoBot.Models.LnMarkets
-{
-    public class UserModel
+﻿namespace AutoBot.Models.LnMarkets;
+
+public class UserModel
     {
         public string uid { get; set; }
 
@@ -38,4 +38,3 @@
 
         public object metrics { get; set; }
     }
-}

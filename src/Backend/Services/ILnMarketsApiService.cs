@@ -1,8 +1,8 @@
-﻿namespace AutoBot.Services
-{
-    using AutoBot.Models.LnMarkets;
+﻿using AutoBot.Models.LnMarkets;
 
-    public interface ILnMarketsApiService
+namespace AutoBot.Services;
+
+public interface ILnMarketsApiService
     {
         Task<IEnumerable<FuturesTradeModel>> FuturesGetRunningTradesAsync(string key, string passphrase, string secret);
 
@@ -26,4 +26,3 @@
 
         Task<bool> Cancel(string key, string passphrase, string secret, string id);
     }
-}

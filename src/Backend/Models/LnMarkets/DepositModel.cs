@@ -1,6 +1,6 @@
-﻿namespace AutoBot.Models.LnMarkets
-{
-    public class DepositModel
+﻿namespace AutoBot.Models.LnMarkets;
+
+public class DepositModel
     {
         public string id { get; set; }
 
@@ -14,4 +14,3 @@
 
         public string type { get; set; }
     }
-}

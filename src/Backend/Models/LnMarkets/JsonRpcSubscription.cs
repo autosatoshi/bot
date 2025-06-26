@@ -1,8 +1,8 @@
-﻿namespace AutoBot.Models.LnMarkets
-{
-    using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-    public class JsonRpcSubscription
+namespace AutoBot.Models.LnMarkets;
+
+public class JsonRpcSubscription
     {
         [JsonPropertyName("method")]
         public string Method { get; set; }
@@ -13,4 +13,3 @@
         [JsonPropertyName("jsonrpc")]
         public string JsonRpc { get; set; }
     }
-}

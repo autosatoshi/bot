@@ -1,8 +1,8 @@
-﻿namespace AutoBot.Models.LnMarkets
-{
-    using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-    public class LastPriceData
+namespace AutoBot.Models.LnMarkets;
+
+public class LastPriceData
     {
         [JsonPropertyName("time")]
         public string? Time { get; set; }
@@ -13,4 +13,3 @@
         [JsonPropertyName("lastTickDirection")]
         public string LastTickDirection { get; set; }
     }
-}
