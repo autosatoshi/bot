@@ -15,11 +15,26 @@
       "allowConsecutiveUsings": true
     },
     "maintainabilityRules": {
-      "topLevelTypes": ["class", "interface", "struct", "delegate", "enum"]
+      "topLevelTypes": [
+        "class",
+        "interface",
+        "struct",
+        "delegate",
+        "enum"
+      ]
     },
     "namingRules": {
       "allowCommonHungarianPrefixes": true,
-      "allowedHungarianPrefixes": ["db", "id", "is", "my", "no", "on", "to", "ui"]
+      "allowedHungarianPrefixes": [
+        "db",
+        "id",
+        "is",
+        "my",
+        "no",
+        "on",
+        "to",
+        "ui"
+      ]
     },
     "orderingRules": {
       "elementOrder": [
