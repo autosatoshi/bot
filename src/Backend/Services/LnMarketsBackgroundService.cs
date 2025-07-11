@@ -195,6 +195,19 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
 
     private LastPriceData? HandleJsonRpcSubscription(JsonRpcSubscription subscription)
     {
-        return JsonSerializer.Deserialize<LastPriceData>(subscription.Params.Data.GetRawText());
+        try
+        {
+            return JsonSerializer.Deserialize<LastPriceData>(subscription.Params.Data.GetRawText());
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Failed to deserialize LastPriceData from subscription data: {RawData}", subscription.Params.Data.GetRawText());
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while parsing subscription data: {RawData}", subscription.Params.Data.GetRawText());
+            return null;
+        }
     }
 }
