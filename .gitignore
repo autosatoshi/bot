@@ -5,3 +5,5 @@
 /src/Backend/obj
 *.user
 /.vscode
+/tests/AutoBot.Tests/bin
+/tests/AutoBot.Tests/obj

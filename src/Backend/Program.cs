@@ -18,6 +18,10 @@ builder.Services.AddOptions<LnMarketsOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+// Add HttpClient and logging
+builder.Services.AddHttpClient();
+builder.Services.AddLogging();
+
 builder.Services.AddSingleton<ILnMarketsApiService, LnMarketsApiService>();
 builder.Services.AddHostedService<LnMarketsBackgroundService>();
 
