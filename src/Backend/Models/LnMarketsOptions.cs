@@ -40,4 +40,27 @@ public class LnMarketsOptions
     
     [Range(-100, 0)]
     public int MaxLossInPercent { get; set; } = -50;
+
+    // WebSocket Configuration
+    [Range(1, int.MaxValue)]
+    public int ReconnectDelaySeconds { get; set; } = 15;
+
+    [Range(1024, int.MaxValue)]
+    public int WebSocketBufferSize { get; set; } = 4096;
+
+    [Range(1, int.MaxValue)]
+    public int MessageTimeoutSeconds { get; set; } = 5;
+
+    [Range(1, int.MaxValue)]
+    public int MinCallIntervalSeconds { get; set; } = 10;
+
+    // Trading Configuration
+    [Range(1, int.MaxValue)]
+    public int SwapAmount { get; set; } = 2000;
+
+    [Range(1, int.MaxValue)]
+    public int ClosedTradesLimit { get; set; } = 1000;
+
+    [Range(1, int.MaxValue)]
+    public int DivisorForTimeCalculation { get; set; } = 1000;
 }

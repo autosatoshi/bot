@@ -6,5 +6,10 @@ public class FuturesPriceHistoryModel
 
         public decimal Value { get; set; }
 
-        public DateTime DateTime => DateTimeOffset.FromUnixTimeSeconds(Time / 1000).UtcDateTime;
+        public DateTime DateTime => DateTimeOffset.FromUnixTimeSeconds(Time / Constants.DivisorForTimeCalculation).UtcDateTime;
+        
+        private static class Constants
+        {
+            public const int DivisorForTimeCalculation = 1000;
+        }
     }

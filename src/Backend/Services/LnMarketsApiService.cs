@@ -1,7 +1,9 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
+using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
@@ -9,12 +11,14 @@ public class LnMarketsApiService : ILnMarketsApiService
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<LnMarketsApiService> _logger;
+        private readonly IOptions<LnMarketsOptions> _options;
         private readonly string _lnMarketsEndpoint = "https://api.lnmarkets.com";
 
-        public LnMarketsApiService(IHttpClientFactory httpClientFactory, ILogger<LnMarketsApiService> logger)
+        public LnMarketsApiService(IHttpClientFactory httpClientFactory, ILogger<LnMarketsApiService> logger, IOptions<LnMarketsOptions> options)
         {
             _httpClient = httpClientFactory.CreateClient();
             _logger = logger;
+            _options = options;
         }
 
         public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, int amount)
@@ -48,9 +52,9 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var method = "POST";
             var path = "/v2/swap";
-            var requestBody = """{"in_asset":"BTC","out_asset":"USD","in_amount":2000}""";
+            var requestBody = $"{{\"in_asset\":\"BTC\",\"out_asset\":\"USD\",\"in_amount\":{_options.Value.SwapAmount}}}";
             
-            return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateNewSwap", new object[] { "BTC", "USD", 2000 });
+            return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateNewSwap", new object[] { "BTC", "USD", _options.Value.SwapAmount });
         }
 
         public async Task<bool> SwapUsdInBtc(string key, string passphrase, string secret, int amount)
@@ -66,7 +70,7 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var method = "GET";
             var path = "/v2/futures";
-            var queryParams = "type=closed&limit=1000";
+            var queryParams = $"type=closed&limit={_options.Value.ClosedTradesLimit}";
             
             return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetClosedTradesAsync", new List<FuturesTradeModel>());
         }

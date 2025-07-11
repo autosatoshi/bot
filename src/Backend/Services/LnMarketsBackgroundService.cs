@@ -8,15 +8,11 @@ using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
-public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILogger<LnMarketsBackgroundService> _logger) : BackgroundService
+public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILogger<LnMarketsBackgroundService> _logger, IOptions<LnMarketsOptions> _options) : BackgroundService
 {
     private static class Constants
     {
-        public const int ReconnectDelaySeconds = 15;
-        public const int WebSocketBufferSize = 1024 * 4;
-        public const int MessageTimeoutSeconds = 5;
         public const decimal PriceRoundingFactor = 50m;
-        public const int MinCallIntervalSeconds = 10;
         public const int SatoshisPerBitcoin = 100_000_000;
         public const string JsonRpcVersion = "2.0";
         public const string SubscribeMethod = "v1/public/subscribe";
@@ -44,7 +40,7 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
             }
             catch (WebSocketException wsEx)
             {
-                _logger.LogWarning(wsEx, "WebSocket connection failed, retrying in {DelaySeconds}s", Constants.ReconnectDelaySeconds);
+                _logger.LogWarning(wsEx, "WebSocket connection failed, retrying in {DelaySeconds}s", _options.Value.ReconnectDelaySeconds);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -56,13 +52,13 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
                 _logger.LogError(ex, "Unexpected error in background service");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(Constants.ReconnectDelaySeconds), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(_options.Value.ReconnectDelaySeconds), stoppingToken);
         }
     }
 
     private async Task ReceiveMessagesAsync(ClientWebSocket webSocket, CancellationToken stoppingToken)
     {
-        var buffer = ArrayPool<byte>.Shared.Rent(Constants.WebSocketBufferSize);
+        var buffer = ArrayPool<byte>.Shared.Rent(_options.Value.WebSocketBufferSize);
         try
         {
             var lastPrice = 0m;
@@ -102,14 +98,14 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
             return null;
 
         var messageTimeDifference = DateTime.UtcNow - (messageAsLastPriceDTO.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
-        if (messageTimeDifference >= TimeSpan.FromSeconds(Constants.MessageTimeoutSeconds))
+        if (messageTimeDifference >= TimeSpan.FromSeconds(_options.Value.MessageTimeoutSeconds))
             return null;
 
         var price = Math.Floor(messageAsLastPriceDTO.LastPrice / Constants.PriceRoundingFactor) * Constants.PriceRoundingFactor;
         if (price == lastPrice)
             return null;
 
-        if ((DateTime.UtcNow - lastCall).TotalSeconds < Constants.MinCallIntervalSeconds)
+        if ((DateTime.UtcNow - lastCall).TotalSeconds < _options.Value.MinCallIntervalSeconds)
             return null;
 
         using var scope = _scopeFactory.CreateScope();
