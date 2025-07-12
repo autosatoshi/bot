@@ -166,17 +166,23 @@ public class LnMarketsApiService : ILnMarketsApiService
                 if (response.IsSuccessStatusCode)
                 {
                     if (logParameters != null)
-                        _logger.LogDebug($"{operationName} successful for " + string.Join(", ", logParameters.Select((p, i) => $"param{i}: {{{i}}}")), logParameters);
+                    {
+                        var sanitizedParams = SanitizeLogParameters(logParameters);
+                        _logger.LogDebug($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
+                    }
                     else
                         _logger.LogDebug($"{operationName} successful");
                     return true;
                 }
 
                 if (logParameters != null)
-                    _logger.LogWarning($"{operationName} failed for " + string.Join(", ", logParameters.Select((p, i) => $"param{i}: {{{i}}}")) + ". Status: {StatusCode}, Response: {Response}",
-                        logParameters.Concat(new object[] { response.StatusCode, responseContent }).ToArray());
+                {
+                    var sanitizedParams = SanitizeLogParameters(logParameters);
+                    _logger.LogWarning($"{operationName} failed for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")) + ". Status: {StatusCode}, Response: {Response}",
+                        sanitizedParams.Concat(new object[] { response.StatusCode, SanitizeResponseContent(responseContent) }).ToArray());
+                }
                 else
-                    _logger.LogWarning($"{operationName} failed. Status: {{StatusCode}}, Response: {{Response}}", response.StatusCode, responseContent);
+                    _logger.LogWarning($"{operationName} failed. Status: {{StatusCode}}, Response: {{Response}}", response.StatusCode, SanitizeResponseContent(responseContent));
                 return false;
             }
             catch (Exception ex)
@@ -246,6 +252,30 @@ public class LnMarketsApiService : ILnMarketsApiService
             {
                 ClearLnMarketsHeaders();
             }
+        }
+
+        private object[] SanitizeLogParameters(object[] parameters)
+        {
+            return parameters.Select(p => p is string str && IsCredential(str) ? "***" : p).ToArray();
+        }
+
+        private string SanitizeResponseContent(string responseContent)
+        {
+            // Don't log potentially sensitive response content completely
+            return responseContent.Length > 200 ? 
+                $"{responseContent[..100]}... [truncated {responseContent.Length - 100} chars]" : 
+                responseContent;
+        }
+
+        private bool IsCredential(string value)
+        {
+            // Basic heuristic to detect potential credentials
+            return !string.IsNullOrEmpty(value) && (
+                value.Length > 20 || // Likely API keys are longer
+                value.Contains("sk_") || // Common API key prefix
+                value.Contains("pk_") ||
+                value.All(char.IsLetterOrDigit) && value.Length > 10
+            );
         }
 
         private string GetSignature(string secret, string payload)

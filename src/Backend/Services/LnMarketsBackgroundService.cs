@@ -92,77 +92,199 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
 
     private async Task<(decimal Price, DateTime Timestamp)?> HandleWsTextMessage(byte[] buffer, WebSocketReceiveResult result, decimal lastPrice, DateTime lastCall)
     {
-        var messageAsString = Encoding.UTF8.GetString(buffer, 0, result.Count);
-        var messageAsLastPriceDTO = ParseMessage(messageAsString);
-        if (messageAsLastPriceDTO is null)
-            return null;
+        try
+        {
+            if (buffer == null || result.Count <= 0)
+            {
+                _logger.LogWarning("Received empty or null WebSocket message");
+                return null;
+            }
 
-        var messageTimeDifference = DateTime.UtcNow - (messageAsLastPriceDTO.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
+            var messageAsString = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            var messageAsLastPriceDTO = ParseMessage(messageAsString);
+            if (messageAsLastPriceDTO is null)
+                return null;
+
+            if (!IsMessageValid(messageAsLastPriceDTO, lastPrice, lastCall))
+                return null;
+
+            var price = Math.Floor(messageAsLastPriceDTO.LastPrice / Constants.PriceRoundingFactor) * Constants.PriceRoundingFactor;
+
+            using var scope = _scopeFactory?.CreateScope();
+            if (scope == null)
+            {
+                _logger.LogError("Failed to create service scope");
+                return null;
+            }
+
+            var (options, apiService) = GetScopedServices(scope);
+
+            var user = await apiService.GetUser(options.Key, options.Passphrase, options.Secret);
+            if (user?.balance == 0)
+                return null;
+
+            await ProcessMarginManagement(apiService, options, messageAsLastPriceDTO, user);
+            await ProcessTradeExecution(apiService, options, messageAsLastPriceDTO, user);
+
+            return (price, DateTime.UtcNow);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing WebSocket text message");
+            return null;
+        }
+    }
+
+    private bool IsMessageValid(LastPriceData messageData, decimal lastPrice, DateTime lastCall)
+    {
+        var messageTimeDifference = DateTime.UtcNow - (messageData.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
         if (messageTimeDifference >= TimeSpan.FromSeconds(_options.Value.MessageTimeoutSeconds))
-            return null;
+            return false;
 
-        var price = Math.Floor(messageAsLastPriceDTO.LastPrice / Constants.PriceRoundingFactor) * Constants.PriceRoundingFactor;
+        var price = Math.Floor(messageData.LastPrice / Constants.PriceRoundingFactor) * Constants.PriceRoundingFactor;
         if (price == lastPrice)
-            return null;
+            return false;
 
         if ((DateTime.UtcNow - lastCall).TotalSeconds < _options.Value.MinCallIntervalSeconds)
-            return null;
+            return false;
 
-        using var scope = _scopeFactory.CreateScope();
+        return true;
+    }
 
+    private (LnMarketsOptions Options, ILnMarketsApiService ApiService) GetScopedServices(IServiceScope scope)
+    {
         var optionsMonitor = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<LnMarketsOptions>>();
         var options = optionsMonitor.CurrentValue;
-
         var apiService = scope.ServiceProvider.GetService<ILnMarketsApiService>() ??
             throw new InvalidOperationException("ILnMarketsApiService not registered in DI container");
+        return (options, apiService);
+    }
 
-        var user = await apiService.GetUser(options.Key, options.Passphrase, options.Secret);
-        if (user.balance == 0)
-            return null;
-
-        var btcInSat = Constants.SatoshisPerBitcoin;
-
-        var addedMarginInUsd = 0m;
-        var runningTrades = await apiService.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
-        foreach (var runningTrade in runningTrades)
+    private async Task ProcessMarginManagement(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData messageData, UserModel user)
+    {
+        try
         {
-            var loss = (runningTrade.pl / runningTrade.margin) * 100;
-            if (loss <= options.MaxLossInPercent)
+            var addedMarginInUsd = 0m;
+            var runningTrades = await apiService.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
+            
+            foreach (var runningTrade in runningTrades)
             {
-                var margin = Math.Round(btcInSat / messageAsLastPriceDTO.LastPrice);
-                var maxMargin = (btcInSat / runningTrade.price) * runningTrade.quantity;
-                if (margin + runningTrade.margin > maxMargin)
-                    margin = maxMargin - runningTrade.margin;
-
-                var amount = (int)(margin * options.AddMarginInUsd);
-                _ = await apiService.AddMargin(options.Key, options.Passphrase, options.Secret, runningTrade.id, amount);
-                addedMarginInUsd += options.AddMarginInUsd;
+                if (runningTrade.margin <= 0)
+                {
+                    _logger.LogWarning("Skipping trade {TradeId} with invalid margin: {Margin}", runningTrade.id, runningTrade.margin);
+                    continue;
+                }
+                
+                var loss = (runningTrade.pl / runningTrade.margin) * 100;
+                if (loss <= options.MaxLossInPercent)
+                {
+                    var margin = CalculateMarginToAdd(messageData.LastPrice, runningTrade, options);
+                    if (margin > 0)
+                    {
+                        var amount = (int)(margin * options.AddMarginInUsd);
+                        _ = await apiService.AddMargin(options.Key, options.Passphrase, options.Secret, runningTrade.id, amount);
+                        addedMarginInUsd += options.AddMarginInUsd;
+                    }
+                }
             }
-        }
-        if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
-            _ = await apiService.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)addedMarginInUsd);
 
-        var tradePrice = Math.Floor(messageAsLastPriceDTO.LastPrice / options.Factor) * options.Factor;
-        var currentTrade = runningTrades.Where(x => x.price == tradePrice).FirstOrDefault();
-        var oneUsdInSats = btcInSat / messageAsLastPriceDTO.LastPrice;
-        var openTrades = await apiService.FuturesGetOpenTradesAsync(options.Key, options.Passphrase, options.Secret);
-        var realMargin = Math.Round(openTrades.Select(x => ((btcInSat / x.price) * x.quantity)
-            + x.maintenance_margin).Sum()
-            + runningTrades.Select(x => ((btcInSat / x.price) * x.quantity)
-            + x.maintenance_margin).Sum());
-        var freeMargin = user.balance - realMargin;
-        if (currentTrade == null && runningTrades.Count() <= options.MaxRunningTrades && freeMargin > oneUsdInSats && !options.Pause)
+            if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
+                _ = await apiService.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)addedMarginInUsd);
+        }
+        catch (Exception ex)
         {
-            var openTrade = openTrades.Where(x => x.price == tradePrice).FirstOrDefault();
+            _logger.LogError(ex, "Error during margin management");
+        }
+    }
+
+    private decimal CalculateMarginToAdd(decimal currentPrice, FuturesTradeModel runningTrade, LnMarketsOptions options)
+    {
+        if (currentPrice <= 0)
+        {
+            _logger.LogWarning("Invalid current price: {Price}", currentPrice);
+            return 0;
+        }
+        
+        if (runningTrade.price <= 0 || runningTrade.quantity <= 0)
+        {
+            _logger.LogWarning("Invalid trade data - Price: {Price}, Quantity: {Quantity}", runningTrade.price, runningTrade.quantity);
+            return 0;
+        }
+        
+        var btcInSat = Constants.SatoshisPerBitcoin;
+        var margin = Math.Round(btcInSat / currentPrice);
+        var maxMargin = (btcInSat / runningTrade.price) * runningTrade.quantity;
+        
+        if (margin + runningTrade.margin > maxMargin)
+            margin = maxMargin - runningTrade.margin;
+            
+        return Math.Max(0, margin);
+    }
+
+    private async Task ProcessTradeExecution(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData messageData, UserModel user)
+    {
+        try
+        {
+            if (options.Pause)
+                return;
+                
+            if (messageData.LastPrice <= 0)
+            {
+                _logger.LogWarning("Invalid last price: {Price}", messageData.LastPrice);
+                return;
+            }
+                
+            var tradePrice = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
+            var runningTrades = await apiService.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
+            var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePrice);
+            
+            if (currentTrade != null || runningTrades.Count() > options.MaxRunningTrades)
+                return;
+                
+            var btcInSat = Constants.SatoshisPerBitcoin;
+            var oneUsdInSats = btcInSat / messageData.LastPrice;
+            var openTrades = await apiService.FuturesGetOpenTradesAsync(options.Key, options.Passphrase, options.Secret);
+            var freeMargin = CalculateFreeMargin(user, openTrades, runningTrades);
+            
+            if (freeMargin <= oneUsdInSats)
+                return;
+                
+            var openTrade = openTrades.FirstOrDefault(x => x.price == tradePrice);
             if (openTrade is null && tradePrice + options.Takeprofit < options.MaxTakeprofitPrice)
             {
-                foreach (var oldTrade in openTrades)
-                    _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
-                _ = await apiService.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, tradePrice, tradePrice + options.Takeprofit, options.Leverage, options.Quantity);
+                await CancelAllOpenTrades(apiService, options, openTrades);
+                _ = await apiService.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, 
+                    tradePrice, tradePrice + options.Takeprofit, options.Leverage, options.Quantity);
             }
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during trade execution");
+        }
+    }
 
-        return (price, DateTime.UtcNow);
+    private decimal CalculateFreeMargin(UserModel user, IEnumerable<FuturesTradeModel> openTrades, IEnumerable<FuturesTradeModel> runningTrades)
+    {
+        var btcInSat = Constants.SatoshisPerBitcoin;
+        var realMargin = Math.Round(
+            openTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum() +
+            runningTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum());
+        return user.balance - realMargin;
+    }
+
+    private async Task CancelAllOpenTrades(ILnMarketsApiService apiService, LnMarketsOptions options, IEnumerable<FuturesTradeModel> openTrades)
+    {
+        foreach (var oldTrade in openTrades)
+        {
+            try
+            {
+                _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
+            }
+        }
     }
 
     private LastPriceData? ParseMessage(string jsonMessage)
