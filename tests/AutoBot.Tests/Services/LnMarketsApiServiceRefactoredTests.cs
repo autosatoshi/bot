@@ -1,7 +1,9 @@
+using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
 using AutoBot.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
 using System.Net;
@@ -14,6 +16,7 @@ public class LnMarketsApiServiceRefactoredTests : IDisposable
     private readonly Mock<ILogger<LnMarketsApiService>> _mockLogger;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly HttpClient _httpClient;
+    private readonly Mock<IOptions<LnMarketsOptions>> _mockOptions;
     private readonly LnMarketsApiService _service;
 
     public LnMarketsApiServiceRefactoredTests()
@@ -26,7 +29,11 @@ public class LnMarketsApiServiceRefactoredTests : IDisposable
         var mockFactory = new Mock<IHttpClientFactory>();
         mockFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(_httpClient);
         
-        _service = new LnMarketsApiService(mockFactory.Object, _mockLogger.Object);
+        // Create mock options with default values
+        _mockOptions = new Mock<IOptions<LnMarketsOptions>>();
+        _mockOptions.Setup(o => o.Value).Returns(new LnMarketsOptions());
+        
+        _service = new LnMarketsApiService(mockFactory.Object, _mockLogger.Object, _mockOptions.Object);
     }
 
     [Fact]

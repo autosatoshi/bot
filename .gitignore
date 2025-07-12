@@ -7,3 +7,4 @@
 /.vscode
 /tests/AutoBot.Tests/bin
 /tests/AutoBot.Tests/obj
+/src/Backend/bin

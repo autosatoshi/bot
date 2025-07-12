@@ -13,3 +13,8 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1600:Elements should be documented", Justification = "Documentation not required for internal APIs")]
 [assembly: SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1601:Partial elements should be documented", Justification = "Documentation not required for internal APIs")]
 [assembly: SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1602:Enumeration items should be documented", Justification = "Documentation not required for internal APIs")]
+[assembly: SuppressMessage("StyleCop.CSharp.NamingRules", "SA1300:Element should begin with uppercase letter", Justification = "API models use snake_case naming from external API")]
+[assembly: SuppressMessage("StyleCop.CSharp.ReadabilityRules", "SA1133:Each attribute should be placed in its own set of square brackets", Justification = "Multiple attributes on single line is acceptable")]
+[assembly: SuppressMessage("StyleCop.CSharp.OrderingRules", "SA1201:A field should not follow a class", Justification = "Field ordering is acceptable for this pattern")]
+[assembly: SuppressMessage("StyleCop.CSharp.OrderingRules", "SA1204:Static members should appear before non-static members", Justification = "Helper methods placed at end for readability")]
+[assembly: SuppressMessage("StyleCop.CSharp.NamingRules", "SA1313:Parameter should begin with lower-case letter", Justification = "Primary constructor parameters use underscore prefix")]

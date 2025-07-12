@@ -26,7 +26,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "POST";
             var path = "/v2/futures/add-margin";
             var requestBody = $$"""{"id":"{{id}}","amount":{{amount}}}""";
-            
+
             return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "AddMargin", new object[] { id, amount });
         }
 
@@ -35,7 +35,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "POST";
             var path = "/v2/futures/cancel";
             var requestBody = $"{{\"id\":\"{id}\"}}";
-            
+
             return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "Cancel", new object[] { id });
         }
 
@@ -44,7 +44,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "POST";
             var path = "/v2/futures";
             var requestBody = $$"""{"side":"b","type":"l","price":{{price}},"takeprofit":{{takeprofit}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
-            
+
             return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateLimitBuyOrder", new object[] { price, takeprofit, leverage, quantity });
         }
 
@@ -53,7 +53,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "POST";
             var path = "/v2/swap";
             var requestBody = $"{{\"in_asset\":\"BTC\",\"out_asset\":\"USD\",\"in_amount\":{_options.Value.SwapAmount}}}";
-            
+
             return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateNewSwap", new object[] { "BTC", "USD", _options.Value.SwapAmount });
         }
 
@@ -62,7 +62,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "POST";
             var path = "/v2/swap";
             var requestBody = $$"""{"in_asset":"USD","out_asset":"BTC","in_amount":{{amount}}}""";
-            
+
             return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "SwapUsdInBtc", new object[] { "USD", "BTC", amount });
         }
 
@@ -71,7 +71,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "GET";
             var path = "/v2/futures";
             var queryParams = $"type=closed&limit={_options.Value.ClosedTradesLimit}";
-            
+
             return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetClosedTradesAsync", new List<FuturesTradeModel>());
         }
 
@@ -80,7 +80,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "GET";
             var path = "/v2/futures";
             var queryParams = "type=open";
-            
+
             return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetOpenTradesAsync", new List<FuturesTradeModel>());
         }
 
@@ -89,7 +89,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "GET";
             var path = "/v2/futures";
             var queryParams = "type=running";
-            
+
             return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetRunningTradesAsync", new List<FuturesTradeModel>());
         }
 
@@ -98,7 +98,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "GET";
             var path = "/v2/user/deposit";
             var queryParams = "";
-            
+
             return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetDeposits", new List<DepositModel>());
         }
 
@@ -107,7 +107,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "GET";
             var path = "/v2/user";
             var queryParams = "";
-            
+
             try
             {
                 var data = await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetUser", (UserModel?)null);
@@ -116,7 +116,7 @@ public class LnMarketsApiService : ILnMarketsApiService
                     _logger.LogWarning("GetUser returned null data from LN Markets API");
                     throw new InvalidOperationException("Failed to retrieve user data from LN Markets API");
                 }
-                
+
                 return data;
             }
             catch (Exception ex)
@@ -131,7 +131,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             var method = "GET";
             var path = "/v2/user/withdraw";
             var queryParams = "";
-            
+
             return await ExecuteGetStringRequestAsync(key, passphrase, secret, method, path, queryParams, "GetWithdrawals");
         }
 
@@ -154,15 +154,15 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var timestamp = GetUtcNowInUnixTimestamp();
             var signaturePayload = $"{timestamp}{method}{path}{requestBody}";
-            
+
             SetLnMarketsHeaders(key, passphrase, GetSignature(secret, signaturePayload), timestamp);
             var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-            
+
             try
             {
                 var response = await _httpClient.PostAsync($"{_lnMarketsEndpoint}{path}", content);
                 var responseContent = await response.Content.ReadAsStringAsync();
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     if (logParameters != null)
@@ -171,9 +171,9 @@ public class LnMarketsApiService : ILnMarketsApiService
                         _logger.LogDebug($"{operationName} successful");
                     return true;
                 }
-                
+
                 if (logParameters != null)
-                    _logger.LogWarning($"{operationName} failed for " + string.Join(", ", logParameters.Select((p, i) => $"param{i}: {{{i}}}")) + ". Status: {StatusCode}, Response: {Response}", 
+                    _logger.LogWarning($"{operationName} failed for " + string.Join(", ", logParameters.Select((p, i) => $"param{i}: {{{i}}}")) + ". Status: {StatusCode}, Response: {Response}",
                         logParameters.Concat(new object[] { response.StatusCode, responseContent }).ToArray());
                 else
                     _logger.LogWarning($"{operationName} failed. Status: {{StatusCode}}, Response: {{Response}}", response.StatusCode, responseContent);
@@ -197,19 +197,19 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var timestamp = GetUtcNowInUnixTimestamp();
             var signaturePayload = $"{timestamp}{method}{path}{queryParams}";
-            
+
             SetLnMarketsHeaders(key, passphrase, GetSignature(secret, signaturePayload), timestamp);
-            
+
             try
             {
                 var requestUrl = $"{_lnMarketsEndpoint}{path}?{queryParams}";
                 var data = await _httpClient.GetFromJsonAsync<T>(requestUrl) ?? defaultValue;
-                
+
                 if (data is IEnumerable<object> enumerable)
                     _logger.LogDebug($"{operationName} successful, retrieved {{Count}} items", enumerable.Count());
                 else
                     _logger.LogDebug($"{operationName} successful");
-                    
+
                 return data;
             }
             catch (Exception ex)
@@ -227,9 +227,9 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             var timestamp = GetUtcNowInUnixTimestamp();
             var signaturePayload = $"{timestamp}{method}{path}{queryParams}";
-            
+
             SetLnMarketsHeaders(key, passphrase, GetSignature(secret, signaturePayload), timestamp);
-            
+
             try
             {
                 var requestUrl = $"{_lnMarketsEndpoint}{path}?{queryParams}";
