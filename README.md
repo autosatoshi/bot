@@ -135,6 +135,21 @@ Edit `src/Backend/appsettings.json`:
 | `addMarginInUsd` | Margin addition on losing positions | `1` |
 | `maxLossInPercent` | Max loss before adding margin | `-50` |
 
+### Docker Resource Configuration
+
+The docker-compose.yml includes resource limits suitable for Raspberry Pi. You may need to adjust these based on your system:
+
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 1G      # Increase if bot experiences memory issues
+      cpus: '1.0'     # Adjust based on available CPU cores
+    reservations:
+      memory: 512M    # Minimum guaranteed memory
+      cpus: '0.5'     # Minimum guaranteed CPU
+```
+
 ## 🏗️ Architecture
 
 ```
