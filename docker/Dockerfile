@@ -1,5 +1,5 @@
-# Use the official .NET 8 runtime image for ARM64
-FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine-arm64v8 AS base
+# Use the official .NET 8 ASP.NET Core runtime image for ARM64
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine-arm64v8 AS base
 WORKDIR /app
 EXPOSE 8080
 
@@ -7,16 +7,14 @@ EXPOSE 8080
 FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine-arm64v8 AS build
 WORKDIR /src
 
-# Copy solution file and project files
-COPY AutoBot.sln ./
+# Copy only the main project file
 COPY src/Backend/AutoBot.csproj src/Backend/
-COPY tests/AutoBot.Tests/AutoBot.Tests.csproj tests/AutoBot.Tests/
 
-# Restore dependencies
-RUN dotnet restore AutoBot.sln
+# Restore dependencies for main project only
+RUN dotnet restore src/Backend/AutoBot.csproj
 
-# Copy the rest of the source code
-COPY . .
+# Copy only the source code (excluding tests)
+COPY src/ src/
 
 # Build the application
 WORKDIR /src/src/Backend
