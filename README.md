@@ -25,11 +25,20 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
 
 ## 📋 Prerequisites
 
+### For Direct Installation:
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+
+### For Docker Installation:
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- For Raspberry Pi: Ensure Docker is configured for ARM64 architecture
+
+### Common Requirements:
 - LN Markets account with API access
 - Basic knowledge of C# and trading
 
 ## 🛠️ Installation
+
+### Option 1: Direct .NET Installation
 
 1. **Clone the repository**
    ```bash
@@ -47,6 +56,43 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
 4. **Start the bot**
    ```bash
    dotnet run --project src/Backend/AutoBot.csproj
+   ```
+
+### Option 2: Docker Installation (Recommended for Raspberry Pi)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/autosatoshi/bot.git
+   cd bot
+   ```
+
+2. **Configure settings** (see Configuration below)
+
+3. **Build and run with Docker Compose**
+   ```bash
+   cd docker
+   docker-compose up -d
+   ```
+
+   Or build and run manually:
+   ```bash
+   # Build the image
+   docker build --platform linux/arm64 -f docker/Dockerfile -t autosatoshi:latest .
+   
+   # Run the container
+   docker run -d --name autosatoshi \
+     --restart unless-stopped \
+     -v $(pwd)/src/Backend/appsettings.json:/app/appsettings.json:ro \
+     autosatoshi:latest
+   ```
+
+4. **Monitor the bot**
+   ```bash
+   # View logs
+   docker logs -f autosatoshi
+   
+   # Stop the bot (from docker directory)
+   cd docker && docker-compose down
    ```
 
 ## ⚙️ Configuration

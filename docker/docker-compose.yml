@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  autosatoshi:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: autosatoshi
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DOTNET_ENVIRONMENT=Production
+    volumes:
+      # Mount configuration file to allow runtime configuration changes
+      - ../src/Backend/appsettings.json:/app/appsettings.json:ro
+      # Optional: mount logs directory if needed
+      # - ./logs:/app/logs
+    # Uncomment and configure if you need to expose web interface
+    # ports:
+    #   - "8080:8080"
+    # Resource limits for Raspberry Pi
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    # Health check to monitor the bot
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep AutoBot || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
