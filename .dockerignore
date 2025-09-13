@@ -1,0 +1,46 @@
+# Ignore version control files
+.git
+.gitignore
+.gitattributes
+
+# Ignore build artifacts
+bin/
+obj/
+out/
+publish/
+
+# Ignore IDE and editor files
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+*.userprefs
+
+# Ignore NuGet packages
+packages/
+*.nupkg
+
+# Ignore test results
+TestResults/
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
+*.temp
+*~
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (don't need to copy these into the container)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# README and documentation
+README.md
+*.md

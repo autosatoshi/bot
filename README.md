@@ -25,11 +25,20 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
 
 ## 📋 Prerequisites
 
+### For Direct Installation:
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+
+### For Docker Installation:
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- For Raspberry Pi: Ensure Docker is configured for ARM64 architecture
+
+### Common Requirements:
 - LN Markets account with API access
 - Basic knowledge of C# and trading
 
 ## 🛠️ Installation
+
+### Option 1: Direct .NET Installation
 
 1. **Clone the repository**
    ```bash
@@ -47,6 +56,43 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
 4. **Start the bot**
    ```bash
    dotnet run --project src/Backend/AutoBot.csproj
+   ```
+
+### Option 2: Docker Installation (Recommended for Raspberry Pi)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/autosatoshi/bot.git
+   cd bot
+   ```
+
+2. **Configure settings** (see Configuration below)
+
+3. **Build and run with Docker Compose**
+   ```bash
+   cd docker
+   docker-compose up -d
+   ```
+
+   Or build and run manually:
+   ```bash
+   # Build the image
+   docker build --platform linux/arm64 -f docker/Dockerfile -t autosatoshi:latest .
+   
+   # Run the container
+   docker run -d --name autosatoshi \
+     --restart unless-stopped \
+     -v $(pwd)/src/Backend/appsettings.json:/app/appsettings.json:ro \
+     autosatoshi:latest
+   ```
+
+4. **Monitor the bot**
+   ```bash
+   # View logs
+   docker logs -f autosatoshi
+   
+   # Stop the bot (from docker directory)
+   cd docker && docker-compose down
    ```
 
 ## ⚙️ Configuration
@@ -88,6 +134,21 @@ Edit `src/Backend/appsettings.json`:
 | `factor` | Price interval factor (1000 = $1000 intervals) | `1000` |
 | `addMarginInUsd` | Margin addition on losing positions | `1` |
 | `maxLossInPercent` | Max loss before adding margin | `-50` |
+
+### Docker Resource Configuration
+
+The docker-compose.yml includes resource limits suitable for Raspberry Pi. You may need to adjust these based on your system:
+
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 1G      # Increase if bot experiences memory issues
+      cpus: '1.0'     # Adjust based on available CPU cores
+    reservations:
+      memory: 512M    # Minimum guaranteed memory
+      cpus: '0.5'     # Minimum guaranteed CPU
+```
 
 ## 🏗️ Architecture
 
