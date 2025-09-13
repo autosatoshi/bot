@@ -168,10 +168,10 @@ public class LnMarketsApiService : ILnMarketsApiService
                     if (logParameters != null)
                     {
                         var sanitizedParams = SanitizeLogParameters(logParameters);
-                        _logger.LogDebug($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
+                        _logger.LogInformation($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
                     }
                     else
-                        _logger.LogDebug($"{operationName} successful");
+                        _logger.LogInformation($"{operationName} successful");
                     return true;
                 }
 
@@ -212,9 +212,9 @@ public class LnMarketsApiService : ILnMarketsApiService
                 var data = await _httpClient.GetFromJsonAsync<T>(requestUrl) ?? defaultValue;
 
                 if (data is IEnumerable<object> enumerable)
-                    _logger.LogDebug($"{operationName} successful, retrieved {{Count}} items", enumerable.Count());
+                    _logger.LogInformation($"{operationName} successful, retrieved {{Count}} items", enumerable.Count());
                 else
-                    _logger.LogDebug($"{operationName} successful");
+                    _logger.LogInformation($"{operationName} successful");
 
                 return data;
             }
@@ -240,7 +240,7 @@ public class LnMarketsApiService : ILnMarketsApiService
             {
                 var requestUrl = $"{_lnMarketsEndpoint}{path}?{queryParams}";
                 var data = await _httpClient.GetStringAsync(requestUrl);
-                _logger.LogDebug($"{operationName} successful");
+                _logger.LogInformation($"{operationName} successful");
                 return data;
             }
             catch (Exception ex)
