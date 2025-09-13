@@ -1,10 +1,10 @@
-# Use the official .NET 8 ASP.NET Core runtime image for ARM64
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine-arm64v8 AS base
+# Use the official .NET 8 ASP.NET Core runtime image (multi-platform)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS base
 WORKDIR /app
 EXPOSE 8080
 
-# Use the official .NET 8 SDK image for ARM64 to build the app
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine-arm64v8 AS build
+# Use the official .NET 8 SDK image (multi-platform) to build the app
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /src
 
 # Copy only the main project file

@@ -30,7 +30,7 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
 
 ### For Docker Installation:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-- For Raspberry Pi: Ensure Docker is configured for ARM64 architecture
+- **Multi-platform support**: Automatically detects and builds for your system architecture (AMD64/ARM64)
 
 ### Common Requirements:
 - LN Markets account with API access
@@ -58,7 +58,9 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
    dotnet run --project src/Backend/AutoBot.csproj
    ```
 
-### Option 2: Docker Installation (Recommended for Raspberry Pi)
+### Option 2: Docker Installation (Cross-Platform)
+
+Docker installation supports both **AMD64** (Intel/AMD processors) and **ARM64** (Apple Silicon, Raspberry Pi) architectures.
 
 1. **Clone the repository**
    ```bash
@@ -68,22 +70,36 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
 
 2. **Configure settings** (see Configuration below)
 
-3. **Build and run with Docker Compose**
+3. **Choose your platform and build**
+
+   **For AMD64 systems (Intel/AMD processors - DEFAULT):**
    ```bash
    cd docker
    docker-compose up -d
    ```
 
-   Or build and run manually:
+   **For ARM64 systems (Apple Silicon, Raspberry Pi):**
    ```bash
-   # Build the image
-   docker build --platform linux/arm64 -f docker/Dockerfile -t autosatoshi:latest .
-   
-   # Run the container
-   docker run -d --name autosatoshi \
+   cd docker
+   # Edit docker-compose.yml: change 'platform: linux/amd64' to 'platform: linux/arm64'
+   docker-compose up -d
+   ```
+
+   **Alternative: Manual Docker commands**
+   ```bash
+   # AMD64 (Intel/AMD)
+   docker build --platform linux/amd64 -f docker/Dockerfile -t autosatoshi:amd64 .
+   docker run -d --name autosatoshi --platform linux/amd64 \
      --restart unless-stopped \
      -v $(pwd)/src/Backend/appsettings.json:/app/appsettings.json:ro \
-     autosatoshi:latest
+     autosatoshi:amd64
+
+   # ARM64 (Apple Silicon/Raspberry Pi)
+   docker build --platform linux/arm64 -f docker/Dockerfile -t autosatoshi:arm64 .
+   docker run -d --name autosatoshi --platform linux/arm64 \
+     --restart unless-stopped \
+     -v $(pwd)/src/Backend/appsettings.json:/app/appsettings.json:ro \
+     autosatoshi:arm64
    ```
 
 4. **Monitor the bot**
@@ -94,6 +110,34 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
    # Stop the bot (from docker directory)
    cd docker && docker-compose down
    ```
+
+#### Platform Selection Guide
+
+| System Type | Architecture | Platform Setting | Performance |
+|-------------|-------------|------------------|-------------|
+| **Windows PC** | Intel/AMD | `linux/amd64` | Optimal ✅ |
+| **Mac (Intel)** | Intel x86_64 | `linux/amd64` | Optimal ✅ |
+| **Mac (Apple Silicon)** | Apple M1/M2/M3 | `linux/arm64` | Optimal ✅ |
+| **Linux Server** | Intel/AMD | `linux/amd64` | Optimal ✅ |
+| **Raspberry Pi 4/5** | ARM64 | `linux/arm64` | Optimal ✅ |
+| **AWS Graviton** | ARM64 | `linux/arm64` | Optimal ✅ |
+
+**Quick Platform Detection:**
+```bash
+# Check your system architecture
+uname -m
+# x86_64 = use linux/amd64
+# aarch64 or arm64 = use linux/arm64
+```
+
+**Multi-Platform Building (Advanced):**
+```bash
+# Build for both platforms simultaneously
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile -t autosatoshi:multi .
+
+# Push multi-platform image to registry
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile -t your-registry/autosatoshi:latest --push .
+```
 
 ## ⚙️ Configuration
 

@@ -5,6 +5,7 @@ services:
     build: 
       context: ..
       dockerfile: docker/Dockerfile
+    platform: linux/amd64  # Default to AMD64. Change to linux/arm64 for ARM processors
     container_name: autosatoshi
     restart: unless-stopped
     environment:
