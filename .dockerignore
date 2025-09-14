@@ -1,28 +1,28 @@
-# Ignore version control files
-.git
-.gitignore
-.gitattributes
+# Ignore version control files (anywhere in the tree)
+**/.git
+**/.gitignore
+**/.gitattributes
 
-# Ignore build artifacts
-bin/
-obj/
-out/
-publish/
+# Ignore C#/.NET build artifacts (anywhere in the tree)
+**/bin/
+**/obj/
+**/out/
+**/publish/
 
-# Ignore IDE and editor files
-.vs/
-.vscode/
+# Ignore IDE and editor files (anywhere in the tree)
+**/.vs/
+**/.vscode/
 *.user
 *.suo
 *.sln.docstates
 *.userprefs
 
-# Ignore NuGet packages
-packages/
+# Ignore NuGet packages (anywhere in the tree)
+**/packages/
 *.nupkg
 
-# Ignore test results
-TestResults/
+# Ignore test results (anywhere in the tree)
+**/TestResults/
 
 # Ignore log files
 *.log
@@ -32,13 +32,12 @@ TestResults/
 *.temp
 *~
 
-# Ignore OS files
-.DS_Store
-Thumbs.db
+# Ignore OS files (anywhere in the tree)
+**/.DS_Store
+**/Thumbs.db
 
 # Docker files (don't need to copy these into the container)
-Dockerfile*
-docker-compose*
+docker/
 .dockerignore
 
 # README and documentation
