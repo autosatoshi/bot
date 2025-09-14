@@ -1,7 +1,7 @@
-# Ignore version control files
-.git
-.gitignore
-.gitattributes
+# Ignore version control files (anywhere in the tree)
+**/.git
+**/.gitignore
+**/.gitattributes
 
 # Ignore C#/.NET build artifacts (anywhere in the tree)
 **/bin/
