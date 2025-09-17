@@ -1,4 +1,4 @@
-﻿namespace AutoBot;
+namespace AutoBot;
 
 public static class Helper
 {
