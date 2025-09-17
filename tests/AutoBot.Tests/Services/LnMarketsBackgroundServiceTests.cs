@@ -8,7 +8,7 @@ using Moq;
 
 namespace AutoBot.Tests.Services;
 
-public class LnMarketsBackgroundServiceTests : IDisposable
+public sealed class LnMarketsBackgroundServiceTests : IDisposable
 {
     private readonly Mock<IServiceScopeFactory> _mockScopeFactory;
     private readonly Mock<ILogger<LnMarketsBackgroundService>> _mockLogger;
@@ -88,6 +88,15 @@ public class LnMarketsBackgroundServiceTests : IDisposable
 
     public void Dispose()
     {
-        _service?.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _service?.Dispose();
+        }
     }
 }

@@ -34,8 +34,8 @@ public class LnMarketsOptionsTests
     }
 
     [Theory]
-    [InlineData("", "Key is required")]
-    [InlineData(null, "Key is required")]
+    [InlineData("", "The Key field is required.")]
+    [InlineData(null, "The Key field is required.")]
     public void Key_WithInvalidValues_ShouldFailValidation(string? key, string expectedMessage)
     {
         // Arrange
@@ -47,12 +47,13 @@ public class LnMarketsOptionsTests
 
         // Assert
         validationResults.Should().NotBeEmpty();
+        validationResults.Should().Contain(vr => vr.ErrorMessage == expectedMessage);
         validationResults.Should().Contain(r => r.ErrorMessage!.Contains("required") || r.ErrorMessage.Contains("MinLength"));
     }
 
     [Theory]
-    [InlineData("", "Passphrase is required")]
-    [InlineData(null, "Passphrase is required")]
+    [InlineData("", "The Passphrase field is required.")]
+    [InlineData(null, "The Passphrase field is required.")]
     public void Passphrase_WithInvalidValues_ShouldFailValidation(string? passphrase, string expectedMessage)
     {
         // Arrange
@@ -64,12 +65,13 @@ public class LnMarketsOptionsTests
 
         // Assert
         validationResults.Should().NotBeEmpty();
+        validationResults.Should().Contain(vr => vr.ErrorMessage == expectedMessage);
         validationResults.Should().Contain(r => r.ErrorMessage!.Contains("required") || r.ErrorMessage.Contains("MinLength"));
     }
 
     [Theory]
-    [InlineData("", "Secret is required")]
-    [InlineData(null, "Secret is required")]
+    [InlineData("", "The Secret field is required.")]
+    [InlineData(null, "The Secret field is required.")]
     public void Secret_WithInvalidValues_ShouldFailValidation(string? secret, string expectedMessage)
     {
         // Arrange
@@ -81,6 +83,7 @@ public class LnMarketsOptionsTests
 
         // Assert
         validationResults.Should().NotBeEmpty();
+        validationResults.Should().Contain(vr => vr.ErrorMessage == expectedMessage);
         validationResults.Should().Contain(r => r.ErrorMessage!.Contains("required") || r.ErrorMessage.Contains("MinLength"));
     }
 

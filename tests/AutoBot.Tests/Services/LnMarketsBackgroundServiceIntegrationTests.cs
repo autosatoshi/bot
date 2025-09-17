@@ -9,7 +9,7 @@ using Moq;
 
 namespace AutoBot.Tests.Services;
 
-public class LnMarketsBackgroundServiceIntegrationTests : IDisposable
+public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
 {
     private readonly ServiceCollection _services;
     private readonly ServiceProvider _serviceProvider;
@@ -111,6 +111,15 @@ public class LnMarketsBackgroundServiceIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        _serviceProvider?.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _serviceProvider?.Dispose();
+        }
     }
 }

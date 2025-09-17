@@ -11,7 +11,7 @@ using System.Text;
 
 namespace AutoBot.Tests.Services;
 
-public class LnMarketsApiServiceRefactoredTests : IDisposable
+public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
 {
     private readonly Mock<ILogger<LnMarketsApiService>> _mockLogger;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
@@ -248,6 +248,15 @@ public class LnMarketsApiServiceRefactoredTests : IDisposable
 
     public void Dispose()
     {
-        _httpClient?.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _httpClient?.Dispose();
+        }
     }
 }
