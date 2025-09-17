@@ -12,7 +12,6 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
 {
     private static class Constants
     {
-        public const decimal PriceRoundingFactor = 50m;
         public const int SatoshisPerBitcoin = 100_000_000;
         public const string JsonRpcVersion = "2.0";
         public const string SubscribeMethod = "v1/public/subscribe";
@@ -108,7 +107,7 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
             if (!IsMessageValid(messageAsLastPriceDTO, lastPrice, lastCall))
                 return null;
 
-            var price = Math.Floor(messageAsLastPriceDTO.LastPrice / Constants.PriceRoundingFactor) * Constants.PriceRoundingFactor;
+            var price = Math.Floor(messageAsLastPriceDTO.LastPrice / _options.Value.Factor) * _options.Value.Factor;
 
             using var scope = _scopeFactory?.CreateScope();
             if (scope == null)
@@ -141,7 +140,7 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
         if (messageTimeDifference >= TimeSpan.FromSeconds(_options.Value.MessageTimeoutSeconds))
             return false;
 
-        var price = Math.Floor(messageData.LastPrice / Constants.PriceRoundingFactor) * Constants.PriceRoundingFactor;
+        var price = Math.Floor(messageData.LastPrice / _options.Value.Factor) * _options.Value.Factor;
         if (price == lastPrice)
             return false;
 
