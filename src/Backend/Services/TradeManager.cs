@@ -5,21 +5,22 @@ using AutoBot.Models.LnMarkets;
 using AutoBot.Services;
 using Microsoft.Extensions.Options;
 
-public class TradeManager : ITradeManager
+public class TradeManager : ITradeManager, IDisposable
 {
     private static class Constants
     {
         public const int SatoshisPerBitcoin = 100_000_000;
     }
 
-    private readonly BlockingCollection<LastPriceData> _queue = new();
-    private readonly object _queueLock = new();
-    private readonly Task t;
     private readonly CancellationTokenSource _exitTokenSource = new();
+    private readonly BlockingCollection<LastPriceData> _queue = new();
+    private readonly Task _updateLoop;
+    private readonly ILogger<TradeManager> _logger;
 
     public TradeManager(ILnMarketsApiService client, IOptionsMonitor<LnMarketsOptions> options, ILogger<TradeManager> logger)
     {
-        t = Task.Run(async () =>
+        _logger = logger;
+        _updateLoop = Task.Run(async () =>
         {
             decimal lastPrice = 0;
             var lastIteration = DateTime.MinValue;
@@ -52,7 +53,7 @@ public class TradeManager : ITradeManager
                 }
                 catch (OperationCanceledException) when (_exitTokenSource.IsCancellationRequested)
                 {
-                    logger.LogInformation("Exiting price update loop.");
+                    logger.LogDebug("Exiting update loop.");
                 }
                 catch (Exception ex)
                 {
@@ -65,6 +66,41 @@ public class TradeManager : ITradeManager
     public void UpdatePrice(LastPriceData data)
     {
         _queue.Add(data);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
+        try
+        {
+            _exitTokenSource.Cancel();
+            if (!_updateLoop.Wait(TimeSpan.FromSeconds(10)))
+            {
+                _logger.LogWarning("The update loop didn't finish within timeout");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"An error occured disposing {nameof(TradeManager)}");
+        }
+        finally
+        {
+            _exitTokenSource.Dispose();
+            _queue.Dispose();
+            _updateLoop.Dispose();
+        }
+
+        _logger.LogDebug($"Successfully disposed {nameof(TradeManager)}");
     }
 
     private static async Task HandlePriceUpdate(LastPriceData data, ILnMarketsApiService client, IOptionsMonitor<LnMarketsOptions> options, ILogger? logger = null)
@@ -194,6 +230,7 @@ public class TradeManager : ITradeManager
                         logger?.LogError(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
                     }
                 }
+
                 _ = await apiService.CreateLimitBuyOrder(
                     options.Key,
                     options.Passphrase,
