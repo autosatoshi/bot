@@ -15,6 +15,7 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
     private readonly ServiceProvider _serviceProvider;
     private readonly Mock<ILogger<LnMarketsBackgroundService>> _mockLogger;
     private readonly Mock<ILnMarketsApiService> _mockApiService;
+    private readonly Mock<ITradeManager> _mockTradeManager;
     private readonly LnMarketsOptions _options;
 
     public LnMarketsBackgroundServiceIntegrationTests()
@@ -22,6 +23,7 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
         _services = new ServiceCollection();
         _mockLogger = new Mock<ILogger<LnMarketsBackgroundService>>();
         _mockApiService = new Mock<ILnMarketsApiService>();
+        _mockTradeManager = new Mock<ITradeManager>();
 
         _options = new LnMarketsOptions
         {
@@ -66,6 +68,7 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
 
         _services.AddSingleton(_mockLogger.Object);
         _services.AddSingleton(_mockApiService.Object);
+        _services.AddSingleton(_mockTradeManager.Object);
         _services.AddSingleton<LnMarketsBackgroundService>();
 
         _serviceProvider = _services.BuildServiceProvider();
