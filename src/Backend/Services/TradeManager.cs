@@ -194,6 +194,14 @@ public class TradeManager : ITradeManager
                         logger?.LogError(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
                     }
                 }
+                _ = await apiService.CreateLimitBuyOrder(
+                    options.Key,
+                    options.Passphrase,
+                    options.Secret,
+                    tradePrice,
+                    tradePrice + options.Takeprofit,
+                    options.Leverage,
+                    options.Quantity);
             }
         }
         catch (Exception ex)
