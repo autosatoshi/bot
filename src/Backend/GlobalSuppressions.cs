@@ -18,3 +18,4 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("StyleCop.CSharp.OrderingRules", "SA1201:A field should not follow a class", Justification = "Field ordering is acceptable for this pattern")]
 [assembly: SuppressMessage("StyleCop.CSharp.OrderingRules", "SA1204:Static members should appear before non-static members", Justification = "Helper methods placed at end for readability")]
 [assembly: SuppressMessage("StyleCop.CSharp.NamingRules", "SA1313:Parameter should begin with lower-case letter", Justification = "Primary constructor parameters use underscore prefix")]
+[assembly: SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA0001:XML comment analysis is disabled due to project configuration", Justification = "XML documentation not required for internal APIs")]

@@ -10,7 +10,7 @@ using System.Text;
 
 namespace AutoBot.Tests.Services;
 
-public class LnMarketsApiServiceTests : IDisposable
+public sealed class LnMarketsApiServiceTests : IDisposable
 {
     private readonly Mock<ILogger<LnMarketsApiService>> _mockLogger;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
@@ -169,6 +169,15 @@ public class LnMarketsApiServiceTests : IDisposable
 
     public void Dispose()
     {
-        _httpClient?.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _httpClient?.Dispose();
+        }
     }
 }

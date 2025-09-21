@@ -1,8 +1,8 @@
 # AutoBot - Bitcoin Futures Trading Bot
 
-An automated Bitcoin futures trading bot for the LN Markets platform, built with ASP.NET Core 8.0.
+An automated Bitcoin futures trading bot for the LN Markets platform, built with ASP.NET Core 9.0.
 
-[![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/9.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## 🚀 Features
@@ -26,7 +26,7 @@ An automated Bitcoin futures trading bot for the LN Markets platform, built with
 ## 📋 Prerequisites
 
 ### For Direct Installation:
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 ### For Docker Installation:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
@@ -285,4 +285,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built with ❤️ and .NET 8.0**
+**Built with ❤️ and .NET 9.0**

@@ -1,10 +1,10 @@
-# Use the official .NET 8 ASP.NET Core runtime image (multi-platform)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS base
+# Use the official .NET 9 ASP.NET Core runtime image (multi-platform)
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
 WORKDIR /app
 EXPOSE 8080
 
-# Use the official .NET 8 SDK image (multi-platform) to build the app
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+# Use the official .NET 9 SDK image (multi-platform) to build the app
+FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 WORKDIR /src
 
 # Copy only the main project file
