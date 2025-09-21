@@ -1,9 +1,7 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
-using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
@@ -11,14 +9,12 @@ public class LnMarketsApiService : ILnMarketsApiService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<LnMarketsApiService> _logger;
-    private readonly IOptions<LnMarketsOptions> _options;
     private readonly string _lnMarketsEndpoint = "https://api.lnmarkets.com";
 
-    public LnMarketsApiService(IHttpClientFactory httpClientFactory, ILogger<LnMarketsApiService> logger, IOptions<LnMarketsOptions> options)
+    public LnMarketsApiService(IHttpClientFactory httpClientFactory, ILogger<LnMarketsApiService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
         _logger = logger;
-        _options = options;
     }
 
     public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, int amount)
@@ -48,15 +44,6 @@ public class LnMarketsApiService : ILnMarketsApiService
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateLimitBuyOrder", new object[] { price, takeprofit, leverage, quantity });
     }
 
-    public async Task<bool> CreateNewSwap(string key, string passphrase, string secret)
-    {
-        var method = "POST";
-        var path = "/v2/swap";
-        var requestBody = $"{{\"in_asset\":\"BTC\",\"out_asset\":\"USD\",\"in_amount\":{_options.Value.SwapAmount}}}";
-
-        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateNewSwap", new object[] { "BTC", "USD", _options.Value.SwapAmount });
-    }
-
     public async Task<bool> SwapUsdInBtc(string key, string passphrase, string secret, int amount)
     {
         var method = "POST";
@@ -64,15 +51,6 @@ public class LnMarketsApiService : ILnMarketsApiService
         var requestBody = $$"""{"in_asset":"USD","out_asset":"BTC","in_amount":{{amount}}}""";
 
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "SwapUsdInBtc", new object[] { "USD", "BTC", amount });
-    }
-
-    public async Task<IEnumerable<FuturesTradeModel>> FuturesGetClosedTradesAsync(string key, string passphrase, string secret)
-    {
-        var method = "GET";
-        var path = "/v2/futures";
-        var queryParams = $"type=closed&limit={_options.Value.ClosedTradesLimit}";
-
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetClosedTradesAsync", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
     }
 
     public async Task<IEnumerable<FuturesTradeModel>> FuturesGetOpenTradesAsync(string key, string passphrase, string secret)
