@@ -52,22 +52,22 @@ public class LnMarketsApiService : ILnMarketsApiService
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "SwapUsdInBtc", new object[] { "USD", "BTC", amount });
     }
 
-    public async Task<IEnumerable<FuturesTradeModel>> FuturesGetOpenTradesAsync(string key, string passphrase, string secret)
+    public async Task<IEnumerable<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret)
     {
         var method = "GET";
         var path = "/v2/futures";
         var queryParams = "type=open";
 
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetOpenTradesAsync", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
+        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetOpenTrades", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
     }
 
-    public async Task<IEnumerable<FuturesTradeModel>> FuturesGetRunningTradesAsync(string key, string passphrase, string secret)
+    public async Task<IEnumerable<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret)
     {
         var method = "GET";
         var path = "/v2/futures";
         var queryParams = "type=running";
 
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetRunningTradesAsync", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
+        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetRunningTrades", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
     }
 
     public async Task<IEnumerable<DepositModel>> GetDeposits(string key, string passphrase, string secret)

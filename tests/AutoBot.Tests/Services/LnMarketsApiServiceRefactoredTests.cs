@@ -111,7 +111,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
     }
 
     [Fact]
-    public async Task FuturesGetRunningTradesAsync_WhenSuccessful_ShouldReturnTrades()
+    public async Task GetRunningTrades_WhenSuccessful_ShouldReturnTrades()
     {
         // Arrange
         var key = "test-key";
@@ -184,7 +184,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.FuturesGetRunningTradesAsync(key, passphrase, secret);
+        var result = await _service.GetRunningTrades(key, passphrase, secret);
 
         // Assert
         result.Should().NotBeNull();
