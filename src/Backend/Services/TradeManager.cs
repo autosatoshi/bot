@@ -127,7 +127,7 @@ public class TradeManager : ITradeManager, IDisposable
         try
         {
             var addedMarginInUsd = 0m;
-            var runningTrades = await client.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
+            var runningTrades = await client.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
 
             foreach (var runningTrade in runningTrades)
             {
@@ -198,7 +198,7 @@ public class TradeManager : ITradeManager, IDisposable
             }
 
             var tradePrice = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
-            var runningTrades = await apiService.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
+            var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
             var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePrice);
 
             if (currentTrade != null || runningTrades.Count() > options.MaxRunningTrades)
@@ -208,7 +208,7 @@ public class TradeManager : ITradeManager, IDisposable
 
             const int SatoshisPerBitcoin = 100_000_000;
             var oneUsdInSats = SatoshisPerBitcoin / messageData.LastPrice;
-            var openTrades = await apiService.FuturesGetOpenTradesAsync(options.Key, options.Passphrase, options.Secret);
+            var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
             var freeMargin = CalculateFreeMargin(user, openTrades, runningTrades);
 
             if (freeMargin <= oneUsdInSats)
