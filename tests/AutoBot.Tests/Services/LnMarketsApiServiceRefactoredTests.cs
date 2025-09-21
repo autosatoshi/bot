@@ -16,7 +16,6 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
     private readonly Mock<ILogger<LnMarketsApiService>> _mockLogger;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly HttpClient _httpClient;
-    private readonly Mock<IOptions<LnMarketsOptions>> _mockOptions;
     private readonly LnMarketsApiService _service;
 
     public LnMarketsApiServiceRefactoredTests()
@@ -29,11 +28,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
         var mockFactory = new Mock<IHttpClientFactory>();
         mockFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(_httpClient);
         
-        // Create mock options with default values
-        _mockOptions = new Mock<IOptions<LnMarketsOptions>>();
-        _mockOptions.Setup(o => o.Value).Returns(new LnMarketsOptions());
-        
-        _service = new LnMarketsApiService(mockFactory.Object, _mockLogger.Object, _mockOptions.Object);
+        _service = new LnMarketsApiService(mockFactory.Object, _mockLogger.Object);
     }
 
     [Fact]
