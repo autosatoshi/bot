@@ -70,15 +70,6 @@ public class LnMarketsApiService : ILnMarketsApiService
         return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetRunningTrades", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
     }
 
-    public async Task<IEnumerable<DepositModel>> GetDeposits(string key, string passphrase, string secret)
-    {
-        var method = "GET";
-        var path = "/v2/user/deposit";
-        var queryParams = string.Empty;
-
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetDeposits", new List<DepositModel>()) ?? new List<DepositModel>();
-    }
-
     public async Task<UserModel> GetUser(string key, string passphrase, string secret)
     {
         var method = "GET";
@@ -101,15 +92,6 @@ public class LnMarketsApiService : ILnMarketsApiService
             _logger.LogError(ex, "Exception occurred while retrieving user data");
             throw;
         }
-    }
-
-    public async Task<string> GetWithdrawals(string key, string passphrase, string secret)
-    {
-        var method = "GET";
-        var path = "/v2/user/withdraw";
-        var queryParams = string.Empty;
-
-        return await ExecuteGetStringRequestAsync(key, passphrase, secret, method, path, queryParams, "GetWithdrawals");
     }
 
     private void SetLnMarketsHeaders(string key, string passphrase, string signature, long timestamp)

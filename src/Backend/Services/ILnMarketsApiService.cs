@@ -8,10 +8,6 @@ public interface ILnMarketsApiService
 
     Task<IEnumerable<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret);
 
-    Task<string> GetWithdrawals(string key, string passphrase, string secret);
-
-    Task<IEnumerable<DepositModel>> GetDeposits(string key, string passphrase, string secret);
-
     Task<UserModel> GetUser(string key, string passphrase, string secret);
 
     Task<bool> CreateLimitBuyOrder(string key, string passphrase, string secret, decimal price, decimal takeprofit, int leverage, double quantity);
