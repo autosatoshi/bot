@@ -140,7 +140,7 @@ public class TradeManager : ITradeManager, IDisposable
                 var loss = (runningTrade.pl / runningTrade.margin) * 100;
                 if (loss <= options.MaxLossInPercent)
                 {
-                    var margin = CalculateMarginToAdd(messageData.LastPrice, runningTrade, options);
+                    var margin = CalculateMarginToAdd(messageData.LastPrice, runningTrade);
                     if (margin > 0)
                     {
                         var amount = (int)(margin * options.AddMarginInUsd);
@@ -161,7 +161,7 @@ public class TradeManager : ITradeManager, IDisposable
         }
     }
 
-    private static decimal CalculateMarginToAdd(decimal currentPrice, FuturesTradeModel runningTrade, LnMarketsOptions options, ILogger? logger = null)
+    private static decimal CalculateMarginToAdd(decimal currentPrice, FuturesTradeModel runningTrade, ILogger? logger = null)
     {
         if (currentPrice <= 0)
         {
