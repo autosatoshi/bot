@@ -109,16 +109,16 @@ public class ProcessMarginManagementTests
         
         _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockApiService.Setup(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(true);
-        _mockApiService.Setup(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
 
         // Act
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", It.IsAny<int>()), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10408), Times.Once);
         _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 10), Times.Once);
     }
 
@@ -310,14 +310,14 @@ public class ProcessMarginManagementTests
         
         _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockApiService.Setup(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(true);
 
         // Act
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, userWithLowBalance, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10408), Times.Once);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
@@ -381,17 +381,17 @@ public class ProcessMarginManagementTests
         
         _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockApiService.Setup(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(true);
-        _mockApiService.Setup(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
 
         // Act
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", It.IsAny<int>()), Times.Once);
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", It.IsAny<int>()), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10408), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", 833), Times.Once);
         _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 20), Times.Once); // 2 trades * 10 USD
     }
 
