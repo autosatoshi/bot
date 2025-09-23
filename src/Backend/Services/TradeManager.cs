@@ -36,8 +36,9 @@ public class TradeManager : ITradeManager, IDisposable
 
                     lastPrice = data.LastPrice;
 
-                    var timeDelta = DateTime.UtcNow - (data.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
-                    if (timeDelta >= TimeSpan.FromSeconds(options.CurrentValue.MessageTimeoutSeconds))
+                    var timestamp = data.Time?.TimeStampToDateTime() ?? DateTime.MinValue;
+                    var timeDelta = DateTime.UtcNow - timestamp.ToUniversalTime();
+                    if (timeDelta.TotalSeconds >= options.CurrentValue.MessageTimeoutSeconds)
                     {
                         continue;
                     }
@@ -65,7 +66,10 @@ public class TradeManager : ITradeManager, IDisposable
 
     public void UpdatePrice(LastPriceData data)
     {
-        _queue.Add(data);
+        if (!_queue.IsAddingCompleted)
+        {
+            _queue.Add(data);
+        }
     }
 
     public void Dispose()
@@ -83,6 +87,7 @@ public class TradeManager : ITradeManager, IDisposable
 
         try
         {
+            _queue.CompleteAdding();
             _exitTokenSource.Cancel();
             if (!_updateLoop.Wait(TimeSpan.FromSeconds(10)))
             {
