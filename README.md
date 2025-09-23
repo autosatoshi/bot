@@ -146,6 +146,7 @@ Edit `src/Backend/appsettings.json`:
 ```json
 {
   "ln": {
+    "endpoint": "https://api.lnmarkets.com",
     "key": "YOUR_LN_MARKETS_API_KEY",
     "passphrase": "YOUR_PASSPHRASE", 
     "secret": "YOUR_SECRET",
@@ -166,6 +167,7 @@ Edit `src/Backend/appsettings.json`:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
+| `endpoint` | LN Markets API endpoint URL | `"https://api.lnmarkets.com"` |
 | `key` | LN Markets API Key | `""` |
 | `passphrase` | API Passphrase | `""` |
 | `secret` | API Secret | `""` |

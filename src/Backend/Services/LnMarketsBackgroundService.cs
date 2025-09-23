@@ -11,7 +11,6 @@ namespace AutoBot.Services;
 public class LnMarketsBackgroundService(ITradeManager _tradeManager, IOptions<LnMarketsOptions> _options, ILogger<LnMarketsBackgroundService> _logger) : BackgroundService
 {
     private const string FuturesChannel = "futures:btc_usd:last-price";
-    private const string ServerUrl = "wss://api.lnmarkets.com";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -19,9 +18,16 @@ public class LnMarketsBackgroundService(ITradeManager _tradeManager, IOptions<Ln
         {
             using var client = new ClientWebSocket();
 
+            var uri = new Uri(_options.Value.Endpoint);
+            if (uri.Scheme != "wss")
+            {
+                _logger.LogWarning("Modifying endpoint scheme from '{}' to 'wss'", uri.Scheme);
+                uri = new Uri("wss://" + uri.Host);
+            }
+
             try
             {
-                await client.ConnectAsync(new Uri(ServerUrl), stoppingToken);
+                await client.ConnectAsync(uri, stoppingToken);
 
                 const string JsonRpcVersion = "2.0";
                 const string SubscribeMethod = "v1/public/subscribe";

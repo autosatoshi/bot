@@ -1,7 +1,9 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
+using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
@@ -9,11 +11,11 @@ public class LnMarketsApiService : ILnMarketsApiService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<LnMarketsApiService> _logger;
-    private readonly string _lnMarketsEndpoint = "https://api.lnmarkets.com";
 
-    public LnMarketsApiService(IHttpClientFactory httpClientFactory, ILogger<LnMarketsApiService> logger)
+    public LnMarketsApiService(IHttpClientFactory httpClientFactory, IOptions<LnMarketsOptions> options, ILogger<LnMarketsApiService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
+        _httpClient.BaseAddress = new Uri(options.Value.Endpoint);
         _logger = logger;
     }
 
@@ -120,7 +122,7 @@ public class LnMarketsApiService : ILnMarketsApiService
 
         try
         {
-            var response = await _httpClient.PostAsync($"{_lnMarketsEndpoint}{path}", content);
+            var response = await _httpClient.PostAsync($"{path}", content);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)
@@ -181,7 +183,7 @@ public class LnMarketsApiService : ILnMarketsApiService
 
         try
         {
-            var requestUrl = $"{_lnMarketsEndpoint}{path}?{queryParams}";
+            var requestUrl = $"{path}?{queryParams}";
             var data = await _httpClient.GetFromJsonAsync<T>(requestUrl) ?? defaultValue;
 
             if (data is IEnumerable<object> enumerable)
@@ -215,7 +217,7 @@ public class LnMarketsApiService : ILnMarketsApiService
 
         try
         {
-            var requestUrl = $"{_lnMarketsEndpoint}{path}?{queryParams}";
+            var requestUrl = $"{path}?{queryParams}";
             var data = await _httpClient.GetStringAsync(requestUrl);
             _logger.LogInformation($"{operationName} successful");
             return data;
