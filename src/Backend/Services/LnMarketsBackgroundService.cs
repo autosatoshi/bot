@@ -18,17 +18,22 @@ public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILog
         public const string FuturesChannel = "futures:btc_usd:last-price";
     }
 
-    private readonly Uri _serverUri = new("wss://api.lnmarkets.com");
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
             using var webSocket = new ClientWebSocket();
 
+            var uri = new Uri(_options.Value.Endpoint);
+            if (uri.Scheme != "wss")
+            {
+                _logger.LogWarning("Modifying endpoint scheme from '{}' to 'wss'", uri.Scheme);
+                uri = new Uri("wss://" + uri.Host);
+            }
+
             try
             {
-                await webSocket.ConnectAsync(_serverUri, stoppingToken);
+                await webSocket.ConnectAsync(uri, stoppingToken);
 
                 var payload = $"{{\"jsonrpc\":\"{Constants.JsonRpcVersion}\",\"id\":\"{Guid.NewGuid()}\",\"method\":\"{Constants.SubscribeMethod}\",\"params\":[\"{Constants.FuturesChannel}\"]}}";
                 var messageBuffer = Encoding.UTF8.GetBytes(payload);

@@ -6,6 +6,9 @@ public class LnMarketsOptions
 {
     public const string SectionName = "ln";
 
+    [Required, Url]
+    public string Endpoint { get; set; } = string.Empty;
+
     [Required, MinLength(1)]
     public string Key { get; set; } = string.Empty;
 
