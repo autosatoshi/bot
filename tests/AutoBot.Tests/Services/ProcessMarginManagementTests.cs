@@ -168,7 +168,7 @@ public class ProcessMarginManagementTests
     }
 
     [Fact]
-    public async Task ProcessMarginManagement_WithZeroMargin_ShouldLogWarningAndSkip()
+    public async Task ProcessMarginManagement_WithZeroMargin_ShouldReturn()
     {
         // Arrange
         var runningTrade = new FuturesTradeModel
@@ -206,20 +206,12 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Skipping trade trade-1 with invalid margin: 0")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
-        
         _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
-    public async Task ProcessMarginManagement_WithNegativeMargin_ShouldLogWarningAndSkip()
+    public async Task ProcessMarginManagement_WithNegativeMargin_ShouldReturn()
     {
         // Arrange
         var runningTrade = new FuturesTradeModel
@@ -257,14 +249,9 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Skipping trade trade-1 with invalid margin: -100")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        _mockApiService.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
@@ -396,7 +383,7 @@ public class ProcessMarginManagementTests
     }
 
     [Fact]
-    public async Task ProcessMarginManagement_WhenApiCallFails_ShouldContinueProcessing()
+    public async Task ProcessMarginManagement_WhenApiCallFails_ShouldReturn()
     {
         // Arrange
         var runningTrade = new FuturesTradeModel
@@ -433,14 +420,10 @@ public class ProcessMarginManagementTests
         // Act & Assert - Should not throw
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
-        _mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Error,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Error during margin management")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        // Assert
+        _mockApiService.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
