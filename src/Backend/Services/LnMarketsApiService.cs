@@ -1,7 +1,9 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
+using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
@@ -10,9 +12,10 @@ public class LnMarketsApiService : ILnMarketsApiService
     private readonly HttpClient _httpClient;
     private readonly ILogger<LnMarketsApiService> _logger;
 
-    public LnMarketsApiService(IHttpClientFactory httpClientFactory, ILogger<LnMarketsApiService> logger)
+    public LnMarketsApiService(IHttpClientFactory httpClientFactory, IOptions<LnMarketsOptions> options, ILogger<LnMarketsApiService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
+        _httpClient.BaseAddress = new Uri(options.Value.Endpoint);
         _logger = logger;
     }
 
