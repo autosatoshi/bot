@@ -165,8 +165,8 @@ public sealed class TradeManagerQueueTests
             await Task.Run(() => swapUsdSignal.Task.Wait(TimeSpan.FromSeconds(1)));
         }
 
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "losing-trade", It.IsAny<int>()), Times.Once);
-        _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "losing-trade", 10000), Times.Once);
+        _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 10), Times.Once);
     }
 
     [Fact]
@@ -249,8 +249,8 @@ public sealed class TradeManagerQueueTests
         }
 
         // Assert - Business actions should only happen once, not twice
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Once);
-        _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "losing-trade", 10000), Times.Once);
+        _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 10), Times.Once);
     }
 
     [Fact]
@@ -316,8 +316,10 @@ public sealed class TradeManagerQueueTests
         }
 
         // Assert - Both prices should trigger business actions
-        _mockApiService.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.AtLeast(2));
-        _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.AtLeast(2));
+        _mockApiService.Verify(x => x.Cancel(fastOptions.Key, fastOptions.Passphrase, fastOptions.Secret, "old-trade-1"), Times.Once);
+        _mockApiService.Verify(x => x.Cancel(fastOptions.Key, fastOptions.Passphrase, fastOptions.Secret, "old-trade-2"), Times.Once);
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(fastOptions.Key, fastOptions.Passphrase, fastOptions.Secret, 50000m, 52000m, 2, 1), Times.Once);
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(fastOptions.Key, fastOptions.Passphrase, fastOptions.Secret, 51000m, 53000m, 2, 1), Times.Once);
     }
 
     [Fact]
@@ -359,8 +361,8 @@ public sealed class TradeManagerQueueTests
         }
 
         // Assert - Only first call should trigger business actions
-        _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once);
-        _mockApiService.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once); // Only for first trade
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 50000m, 52000m, 2, 1), Times.Once);
+        _mockApiService.Verify(x => x.Cancel(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "old-trade-1"), Times.Once); // Only for first trade
     }
 
     [Fact]
@@ -463,7 +465,7 @@ public sealed class TradeManagerQueueTests
         }
 
         // Assert - GetUser called but no business actions triggered due to zero balance
-        _mockApiService.Verify(x => x.GetUser(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        _mockApiService.Verify(x => x.GetUser(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
         _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
@@ -505,7 +507,7 @@ public sealed class TradeManagerQueueTests
         }
 
         // Assert - Second call should still trigger business actions despite first failure
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "losing-trade", 10000), Times.Once);
     }
 
     [Fact]
