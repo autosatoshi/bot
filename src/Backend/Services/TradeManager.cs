@@ -16,10 +16,32 @@ public class TradeManager : ITradeManager, IDisposable
     private readonly BlockingCollection<LastPriceData> _queue = new();
     private readonly Task _updateLoop;
     private readonly ILogger<TradeManager> _logger;
+    private DateTime _lastConfigChange = DateTime.MinValue;
 
     public TradeManager(ILnMarketsApiService client, IOptionsMonitor<LnMarketsOptions> options, ILogger<TradeManager> logger)
     {
         _logger = logger;
+
+        // Log configuration changes with 500ms debouncing (.OnChange triggers multiple times for the same change...)
+        options.OnChange(newOptions =>
+        {
+            var now = DateTime.UtcNow;
+            if ((now - _lastConfigChange).TotalMilliseconds > 500)
+            {
+                _logger.LogWarning(
+                    "LnMarketsOptions configuration updated:\n\tPause={},\n\tQuantity={},\n\tLeverage={},\n\tTakeProfit={},\n\tMaxTakeprofitPrice={},\n\tMaxRunningTrades={},\n\tFactor={},\n\tAddMarginInUsd={}",
+                    newOptions.Pause,
+                    newOptions.Quantity,
+                    newOptions.Leverage,
+                    newOptions.Takeprofit,
+                    newOptions.MaxTakeprofitPrice,
+                    newOptions.MaxRunningTrades,
+                    newOptions.Factor,
+                    newOptions.AddMarginInUsd);
+                _lastConfigChange = now;
+            }
+        });
+
         _updateLoop = Task.Run(async () =>
         {
             decimal lastPrice = 0;

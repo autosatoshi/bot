@@ -10,9 +10,6 @@ builder.Configuration
     .AddJsonFile(Path.Combine(contentRoot, $"appsettings.Development.json"), optional: true, reloadOnChange: true);
 
 // Configure Options pattern
-builder.Services.Configure<LnMarketsOptions>(
-    builder.Configuration.GetSection(LnMarketsOptions.SectionName));
-
 builder.Services.AddOptions<LnMarketsOptions>()
     .Bind(builder.Configuration.GetSection(LnMarketsOptions.SectionName))
     .ValidateDataAnnotations()
