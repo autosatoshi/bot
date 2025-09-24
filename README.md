@@ -196,6 +196,20 @@ deploy:
       cpus: '0.5'     # Minimum guaranteed CPU
 ```
 
+### Testnet Deployment
+
+For testing with LN Markets testnet without affecting your production instance:
+
+```bash
+cd docker
+docker-compose -p testnet -f docker-compose.yml -f docker-compose.testnet.yml up -d
+```
+
+This creates a new container named 'testnet-autosatoshi' that:
+- Uses the LN Markets testnet endpoint (https://api.testnet4.lnmarkets.com)
+- Runs with your testnet API credentials configured in **appsettings.testnet.json**
+- Allows safe testing without risking real funds
+
 ## 🏗️ Architecture
 
 ```

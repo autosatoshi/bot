@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+  autosatoshi:
+    container_name: autosatoshi-testnet
+    volumes:
+      # Override with testnet configuration file
+      - ../src/Backend/appsettings.testnet.json:/app/appsettings.json:ro
