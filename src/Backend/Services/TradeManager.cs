@@ -149,15 +149,21 @@ public class TradeManager : ITradeManager, IDisposable
                     if (margin > 0)
                     {
                         var amount = (int)(margin * options.AddMarginInUsd);
-                        _ = await client.AddMargin(options.Key, options.Passphrase, options.Secret, runningTrade.id, amount);
-                        addedMarginInUsd += options.AddMarginInUsd;
+                        if (await client.AddMargin(options.Key, options.Passphrase, options.Secret, runningTrade.id, amount))
+                        {
+                            logger?.LogInformation("Successfully added margin {} to running trade '{}'", amount, runningTrade.id);
+                            addedMarginInUsd += options.AddMarginInUsd;
+                        }
                     }
                 }
             }
 
             if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
             {
-                _ = await client.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)addedMarginInUsd);
+                if (await client.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)addedMarginInUsd))
+                {
+                    logger?.LogInformation("Successfully swapped {}$ to btc", addedMarginInUsd);
+                }
             }
         }
         catch (Exception ex)
@@ -236,14 +242,17 @@ public class TradeManager : ITradeManager, IDisposable
                     }
                 }
 
-                _ = await apiService.CreateLimitBuyOrder(
+                if (await apiService.CreateLimitBuyOrder(
                     options.Key,
                     options.Passphrase,
                     options.Secret,
                     tradePrice,
                     tradePrice + options.Takeprofit,
                     options.Leverage,
-                    options.Quantity);
+                    options.Quantity))
+                {
+                    logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}', leverage: '{}', quantity: '{}']", tradePrice, tradePrice + options.Takeprofit, options.Leverage, options.Quantity);
+                }
             }
         }
         catch (Exception ex)

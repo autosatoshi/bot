@@ -130,11 +130,11 @@ public class LnMarketsApiService : ILnMarketsApiService
                 if (logParameters != null)
                 {
                     var sanitizedParams = SanitizeLogParameters(logParameters);
-                    _logger.LogInformation($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
+                    _logger.LogDebug($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
                 }
                 else
                 {
-                    _logger.LogInformation($"{operationName} successful");
+                    _logger.LogDebug($"{operationName} successful");
                 }
 
                 return true;
@@ -188,11 +188,11 @@ public class LnMarketsApiService : ILnMarketsApiService
 
             if (data is IEnumerable<object> enumerable)
             {
-                _logger.LogInformation($"{operationName} successful, retrieved {{Count}} items", enumerable.Count());
+                _logger.LogDebug($"{operationName} successful, retrieved {{Count}} items", enumerable.Count());
             }
             else
             {
-                _logger.LogInformation($"{operationName} successful");
+                _logger.LogDebug($"{operationName} successful");
             }
 
             return data;
@@ -201,31 +201,6 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             _logger.LogError(ex, $"Exception occurred while executing {operationName}");
             return defaultValue;
-        }
-        finally
-        {
-            ClearLnMarketsHeaders();
-        }
-    }
-
-    private async Task<string> ExecuteGetStringRequestAsync(string key, string passphrase, string secret, string method, string path, string queryParams, string operationName)
-    {
-        var timestamp = GetUtcNowInUnixTimestamp();
-        var signaturePayload = $"{timestamp}{method}{path}{queryParams}";
-
-        SetLnMarketsHeaders(key, passphrase, GetSignature(secret, signaturePayload), timestamp);
-
-        try
-        {
-            var requestUrl = $"{path}?{queryParams}";
-            var data = await _httpClient.GetStringAsync(requestUrl);
-            _logger.LogInformation($"{operationName} successful");
-            return data;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Exception occurred while executing {operationName}");
-            throw;
         }
         finally
         {
