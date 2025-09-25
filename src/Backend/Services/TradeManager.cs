@@ -214,25 +214,6 @@ public class TradeManager : ITradeManager
         return user.balance - realMargin;
     }
 
-    private static decimal CalculateOpeningFeeSats(int quantity, decimal entryPrice, decimal feeRate)
-    {
-        // LN Markets formula: (Quantity / Entry price) × Fee Rate × 100,000,000
-        return (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
-    }
-
-    private static decimal CalculateClosingFeeSats(int quantity, decimal takeprofitPrice, decimal feeRate)
-    {
-        // LN Markets formula: (Quantity / Takeprofit price) × Fee Rate × 100,000,000
-        return (quantity / takeprofitPrice) * feeRate * Constants.SatoshisPerBitcoin;
-    }
-
-    private static decimal CalculateTotalTradingFeesSats(int quantity, decimal entryPrice, decimal takeprofitPrice, decimal feeRate)
-    {
-        var openingFeeSats = CalculateOpeningFeeSats(quantity, entryPrice, feeRate);
-        var closingFeeSats = CalculateClosingFeeSats(quantity, takeprofitPrice, feeRate);
-        return openingFeeSats + closingFeeSats;
-    }
-
     private static decimal GetFeeRateFromTier(decimal feeTier)
     {
         // LN Markets fee tiers (based on 30-day cumulative volume):
@@ -254,16 +235,23 @@ public class TradeManager : ITradeManager
     private static decimal CalculateFeeAdjustedTakeprofit(decimal entryPrice, int desiredProfit, int quantity, decimal feeRate, ILogger? logger = null)
     {
         var initialTakeprofit = entryPrice + desiredProfit;
-        var totalFeesInSats = CalculateTotalTradingFeesSats(quantity, entryPrice, initialTakeprofit, feeRate);
+
+        // LN Markets formula: (Quantity / Entry price) × Fee Rate × 100,000,000
+        var openingFeeSats = (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
+
+        // LN Markets formula: (Quantity / Takeprofit price) × Fee Rate × 100,000,000
+        var closingFeeSats = (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
+
+        var totalFeesInSats = openingFeeSats + closingFeeSats;
 
         // Convert satoshi fees to USD: feesInSats * currentPrice / 100,000,000
         var totalFeesInUsd = totalFeesInSats * entryPrice / Constants.SatoshisPerBitcoin;
 
         // Add fees to desired profit to ensure we still profit the intended amount after fees
-        var adjustedTakeprofit = entryPrice + desiredProfit + totalFeesInUsd;
+        var adjustedTakeprofit = desiredProfit + totalFeesInUsd;
 
-        // Round to nearest 0.5 as required by LN Markets API
-        var roundedTakeprofit = Math.Round(adjustedTakeprofit * 2, MidpointRounding.AwayFromZero) / 2;
+        // Round to nearest dollar as required by LN Markets API
+        var roundedTakeprofit = Math.Ceiling(adjustedTakeprofit);
 
         logger?.LogDebug(
             "Fee calculation: Entry={}, InitialTP={}, FeeRate={:P}, TotalFees={} sats (${:F2}), AdjustedTP={}, RoundedTP={}",
