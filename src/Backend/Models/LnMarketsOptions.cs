@@ -56,14 +56,4 @@ public class LnMarketsOptions
 
     [Range(1, int.MaxValue)]
     public int MinCallIntervalSeconds { get; set; } = 10;
-
-    // Trading Configuration
-    [Range(1, int.MaxValue)]
-    public int SwapAmount { get; set; } = 2000;
-
-    [Range(1, int.MaxValue)]
-    public int ClosedTradesLimit { get; set; } = 1000;
-
-    [Range(1, int.MaxValue)]
-    public int DivisorForTimeCalculation { get; set; } = 1000;
 }

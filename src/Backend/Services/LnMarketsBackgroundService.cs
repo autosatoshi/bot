@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
-public class LnMarketsBackgroundService(ITradeManager _tradeManager, IOptions<LnMarketsOptions> _options, ILogger<LnMarketsBackgroundService> _logger) : BackgroundService
+public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMarketsOptions> _options, ILogger<LnMarketsBackgroundService> _logger) : BackgroundService
 {
     private const string FuturesChannel = "futures:btc_usd:last-price";
 
@@ -115,7 +115,7 @@ public class LnMarketsBackgroundService(ITradeManager _tradeManager, IOptions<Ln
                     }
 
                     _logger.LogInformation("Last Price update: {}$", lastPriceData.LastPrice);
-                    _tradeManager.UpdatePrice(lastPriceData);
+                    _priceQueue.UpdatePrice(lastPriceData);
                     return;
                 default:
                     _logger.LogWarning("Received subscription data for unknown channel: {}", subscription.Params.Channel);

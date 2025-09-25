@@ -1,25 +1,24 @@
-using System.Collections.Concurrent;
-using AutoBot;
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
 using AutoBot.Services;
 using Microsoft.Extensions.Options;
 
-public class TradeManager : ITradeManager, IDisposable
+public class TradeManager : ITradeManager
 {
     private static class Constants
     {
         public const int SatoshisPerBitcoin = 100_000_000;
     }
 
-    private readonly CancellationTokenSource _exitTokenSource = new();
-    private readonly BlockingCollection<LastPriceData> _queue = new();
-    private readonly Task _updateLoop;
+    private readonly ILnMarketsApiService _client;
+    private readonly IOptionsMonitor<LnMarketsOptions> _options;
     private readonly ILogger<TradeManager> _logger;
     private DateTime _lastConfigChange = DateTime.MinValue;
 
     public TradeManager(ILnMarketsApiService client, IOptionsMonitor<LnMarketsOptions> options, ILogger<TradeManager> logger)
     {
+        _client = client;
+        _options = options;
         _logger = logger;
 
         // Log configuration changes with 500ms debouncing (.OnChange triggers multiple times for the same change...)
@@ -41,112 +40,30 @@ public class TradeManager : ITradeManager, IDisposable
                 _lastConfigChange = now;
             }
         });
-
-        _updateLoop = Task.Run(async () =>
-        {
-            decimal lastPrice = 0;
-            var lastIteration = DateTime.MinValue;
-            while (!_exitTokenSource.IsCancellationRequested)
-            {
-                try
-                {
-                    var data = _queue.Take(_exitTokenSource.Token);
-                    if (data.LastPrice == lastPrice)
-                    {
-                        continue;
-                    }
-
-                    lastPrice = data.LastPrice;
-
-                    var timestamp = data.Time?.TimeStampToDateTime() ?? DateTime.MinValue;
-                    var timeDelta = DateTime.UtcNow - timestamp.ToUniversalTime();
-                    if (timeDelta.TotalSeconds >= options.CurrentValue.MessageTimeoutSeconds)
-                    {
-                        continue;
-                    }
-
-                    if ((DateTime.UtcNow - lastIteration).TotalSeconds < options.CurrentValue.MinCallIntervalSeconds)
-                    {
-                        continue;
-                    }
-
-                    await HandlePriceUpdate(data, client, options, logger);
-
-                    lastIteration = DateTime.UtcNow;
-                }
-                catch (OperationCanceledException) when (_exitTokenSource.IsCancellationRequested)
-                {
-                    logger.LogDebug("Exiting update loop.");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "An error occured handling new price data");
-                }
-            }
-        });
     }
 
-    public void UpdatePrice(LastPriceData data)
+    public async Task HandlePriceUpdateAsync(LastPriceData data)
     {
-        if (!_queue.IsAddingCompleted)
-        {
-            _queue.Add(data);
-        }
+        await HandlePriceUpdate(data, _client, _options.CurrentValue, _logger);
     }
 
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!disposing)
-        {
-            return;
-        }
-
-        try
-        {
-            _queue.CompleteAdding();
-            _exitTokenSource.Cancel();
-            if (!_updateLoop.Wait(TimeSpan.FromSeconds(10)))
-            {
-                _logger.LogWarning("The update loop didn't finish within timeout");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"An error occured disposing {nameof(TradeManager)}");
-        }
-        finally
-        {
-            _exitTokenSource.Dispose();
-            _queue.Dispose();
-            _updateLoop.Dispose();
-        }
-
-        _logger.LogDebug($"Successfully disposed {nameof(TradeManager)}");
-    }
-
-    private static async Task HandlePriceUpdate(LastPriceData data, ILnMarketsApiService client, IOptionsMonitor<LnMarketsOptions> options, ILogger? logger = null)
+    private static async Task HandlePriceUpdate(LastPriceData data, ILnMarketsApiService client, LnMarketsOptions options, ILogger? logger = null)
     {
         logger?.LogInformation("Handling price update: {}$", data.LastPrice);
 
-        if (options.CurrentValue.Pause)
+        if (options.Pause)
         {
             return;
         }
 
-        var user = await client.GetUser(options.CurrentValue.Key, options.CurrentValue.Passphrase, options.CurrentValue.Secret);
+        var user = await client.GetUser(options.Key, options.Passphrase, options.Secret);
         if (user == null || user.balance == 0)
         {
             return;
         }
 
-        await ProcessMarginManagement(client, options.CurrentValue, data, user, logger);
-        await ProcessTradeExecution(client, options.CurrentValue, data, user, logger);
+        await ProcessMarginManagement(client, options, data, user, logger);
+        await ProcessTradeExecution(client, options, data, user, logger);
     }
 
     private static async Task ProcessMarginManagement(ILnMarketsApiService client, LnMarketsOptions options, LastPriceData messageData, UserModel user, ILogger? logger = null)

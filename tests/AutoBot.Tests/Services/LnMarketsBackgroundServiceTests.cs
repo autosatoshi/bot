@@ -9,7 +9,7 @@ namespace AutoBot.Tests.Services;
 
 public sealed class LnMarketsBackgroundServiceTests : IDisposable
 {
-    private readonly Mock<ITradeManager> _mockTradeManager;
+    private readonly Mock<IPriceQueue> _mockPriceQueue;
     private readonly Mock<IOptions<LnMarketsOptions>> _mockOptions;
     private readonly Mock<ILogger<LnMarketsBackgroundService>> _mockLogger;
     private readonly LnMarketsOptions _options;
@@ -17,7 +17,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
 
     public LnMarketsBackgroundServiceTests()
     {
-        _mockTradeManager = new Mock<ITradeManager>();
+        _mockPriceQueue = new Mock<IPriceQueue>();
         _mockOptions = new Mock<IOptions<LnMarketsOptions>>();
         _mockLogger = new Mock<ILogger<LnMarketsBackgroundService>>();
 
@@ -42,14 +42,14 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
         };
 
         _mockOptions.Setup(o => o.Value).Returns(_options);
-        _service = new LnMarketsBackgroundService(_mockTradeManager.Object, _mockOptions.Object, _mockLogger.Object);
+        _service = new LnMarketsBackgroundService(_mockPriceQueue.Object, _mockOptions.Object, _mockLogger.Object);
     }
 
     [Fact]
     public void Constructor_WithValidParameters_ShouldNotThrow()
     {
         // Arrange & Act
-        var service = new LnMarketsBackgroundService(_mockTradeManager.Object, _mockOptions.Object, _mockLogger.Object);
+        var service = new LnMarketsBackgroundService(_mockPriceQueue.Object, _mockOptions.Object, _mockLogger.Object);
 
         // Assert
         service.Should().NotBeNull();
@@ -69,7 +69,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
     public void Constructor_WithNullLogger_ShouldNotThrow()
     {
         // Arrange & Act  
-        var service = new LnMarketsBackgroundService(_mockTradeManager.Object, _mockOptions.Object, null!);
+        var service = new LnMarketsBackgroundService(_mockPriceQueue.Object, _mockOptions.Object, null!);
 
         // Assert
         service.Should().NotBeNull();
@@ -79,7 +79,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
     public void Constructor_WithNullOptions_ShouldNotThrow()
     {
         // Arrange & Act
-        var service = new LnMarketsBackgroundService(_mockTradeManager.Object, null!, _mockLogger.Object);
+        var service = new LnMarketsBackgroundService(_mockPriceQueue.Object, null!, _mockLogger.Object);
 
         // Assert
         service.Should().NotBeNull();

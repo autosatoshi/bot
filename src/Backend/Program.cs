@@ -21,6 +21,7 @@ builder.Services.AddLogging();
 
 builder.Services.AddSingleton<ILnMarketsApiService, LnMarketsApiService>();
 builder.Services.AddSingleton<ITradeManager, TradeManager>();
+builder.Services.AddSingleton<IPriceQueue, PriceQueue>();
 builder.Services.AddHostedService<LnMarketsBackgroundService>();
 
 var host = builder.Build();

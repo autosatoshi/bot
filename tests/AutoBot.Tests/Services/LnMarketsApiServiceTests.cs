@@ -31,7 +31,10 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         
         // Create mock options with default values
         _mockOptions = new Mock<IOptions<LnMarketsOptions>>();
-        _mockOptions.Setup(o => o.Value).Returns(new LnMarketsOptions());
+        _mockOptions.Setup(o => o.Value).Returns(new LnMarketsOptions 
+        { 
+            Endpoint = "https://test.endpoint" 
+        });
         
         _service = new LnMarketsApiService(mockFactory.Object, _mockOptions.Object, _mockLogger.Object);
     }

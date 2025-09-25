@@ -12,6 +12,7 @@ public class LnMarketsOptionsTests
         // Arrange
         var options = new LnMarketsOptions
         {
+            Endpoint = "https://test.endpoint",
             Key = "valid-key",
             Passphrase = "valid-passphrase",
             Secret = "valid-secret",
@@ -258,6 +259,7 @@ public class LnMarketsOptionsTests
     {
         return new LnMarketsOptions
         {
+            Endpoint = "https://test.endpoint",
             Key = "valid-key",
             Passphrase = "valid-passphrase",
             Secret = "valid-secret",
