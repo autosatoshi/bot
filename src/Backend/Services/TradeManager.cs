@@ -167,7 +167,10 @@ public class TradeManager : ITradeManager
             }
 
             var openTrade = openTrades.FirstOrDefault(x => x.price == tradePrice);
-            if (openTrade is null && tradePrice + options.Takeprofit < options.MaxTakeprofitPrice)
+            var userFeeRate = GetFeeRateFromTier(user.fee_tier);
+            logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, userFeeRate);
+            var feeAdjustedTakeprofit = CalculateFeeAdjustedTakeprofit(tradePrice, options.Takeprofit, options.Quantity, userFeeRate, logger);
+            if (openTrade is null && feeAdjustedTakeprofit < options.MaxTakeprofitPrice)
             {
                 foreach (var oldTrade in openTrades)
                 {
@@ -186,11 +189,13 @@ public class TradeManager : ITradeManager
                     options.Passphrase,
                     options.Secret,
                     tradePrice,
-                    tradePrice + options.Takeprofit,
+                    feeAdjustedTakeprofit,
                     options.Leverage,
                     options.Quantity))
                 {
-                    logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}', leverage: '{}', quantity: '{}']", tradePrice, tradePrice + options.Takeprofit, options.Leverage, options.Quantity);
+                    var originalTakeprofit = tradePrice + options.Takeprofit;
+                    var feeAdjustment = feeAdjustedTakeprofit - originalTakeprofit;
+                    logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}' (was '{}', adjusted by ${:F2} for fees), leverage: '{}', quantity: '{}']", tradePrice, feeAdjustedTakeprofit, originalTakeprofit, feeAdjustment, options.Leverage, options.Quantity);
                 }
             }
         }
@@ -207,5 +212,66 @@ public class TradeManager : ITradeManager
             openTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum() +
             runningTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum());
         return user.balance - realMargin;
+    }
+
+    private static decimal CalculateOpeningFee(int quantity, decimal entryPrice, decimal feeRate)
+    {
+        return (quantity / entryPrice) * feeRate;
+    }
+
+    private static decimal CalculateClosingFee(int quantity, decimal takeprofitPrice, decimal feeRate)
+    {
+        return (quantity / takeprofitPrice) * feeRate;
+    }
+
+    private static decimal CalculateTotalTradingFees(int quantity, decimal entryPrice, decimal takeprofitPrice, decimal feeRate)
+    {
+        var openingFee = CalculateOpeningFee(quantity, entryPrice, feeRate);
+        var closingFee = CalculateClosingFee(quantity, takeprofitPrice, feeRate);
+        return openingFee + closingFee;
+    }
+
+    private static decimal GetFeeRateFromTier(decimal feeTier)
+    {
+        // LN Markets fee tiers (based on 30-day cumulative volume):
+        // API returns 0-indexed tiers:
+        // 0 = Tier 1: 0 volume → 0.1% fee
+        // 1 = Tier 2: > $250k → 0.08% fee
+        // 2 = Tier 3: > $1,000k → 0.07% fee
+        // 3 = Tier 4: > $5,000k → 0.06% fee
+        return feeTier switch
+        {
+            0 => 0.001m,   // Tier 1: 0.1%
+            1 => 0.0008m,  // Tier 2: 0.08%
+            2 => 0.0007m,  // Tier 3: 0.07%
+            3 => 0.0006m,  // Tier 4: 0.06%
+            _ => 0.001m,   // Default to highest fee rate for safety
+        };
+    }
+
+    private static decimal CalculateFeeAdjustedTakeprofit(decimal entryPrice, int desiredProfit, int quantity, decimal feeRate, ILogger? logger = null)
+    {
+        var initialTakeprofit = entryPrice + desiredProfit;
+        var totalFees = CalculateTotalTradingFees(quantity, entryPrice, initialTakeprofit, feeRate);
+
+        // Convert fees from decimal (fraction of BTC) to satoshis, then to USD
+        // This matches LN Markets formula: (Quantity / Price) × Fee Rate × SATS_PER_BTC
+        var btcInSat = Constants.SatoshisPerBitcoin;
+        var feesInSats = totalFees * btcInSat;
+        var feesInUsd = feesInSats * entryPrice / btcInSat;
+
+        // Add fees to desired profit to ensure we still profit the intended amount after fees
+        var adjustedTakeprofit = entryPrice + desiredProfit + feesInUsd;
+
+        logger?.LogDebug(
+            "Fee calculation: Entry={}, InitialTP={}, FeeRate={:P}, TotalFees={} sats (${:F2}), AdjustedTP={}",
+            entryPrice,
+            initialTakeprofit,
+            feeRate,
+            feesInSats,
+            feesInUsd,
+            adjustedTakeprofit);
+
+        return adjustedTakeprofit;
     }
 }
