@@ -234,6 +234,8 @@ public class TradeManager : ITradeManager
 
     private static decimal CalculateFeeAdjustedTakeprofit(decimal entryPrice, int takeProfit, int quantity, decimal feeRate, ILogger? logger = null)
     {
+        var initialTakeProfit = entryPrice + takeProfit;
+
         // LN Markets formula: (Quantity / Entry price) × Fee Rate × 100,000,000
         var openingFeeSats = (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
 
@@ -246,7 +248,7 @@ public class TradeManager : ITradeManager
         var totalFeesInUsd = totalFeesInSats * entryPrice / Constants.SatoshisPerBitcoin;
 
         // Add fees to desired profit to ensure we still profit the intended amount after fees
-        var adjustedTakeprofit = takeProfit + totalFeesInUsd;
+        var adjustedTakeprofit = initialTakeProfit + totalFeesInUsd;
 
         // Round to nearest dollar as required by LN Markets API
         var roundedTakeprofit = Math.Ceiling(adjustedTakeprofit);
@@ -254,7 +256,7 @@ public class TradeManager : ITradeManager
         logger?.LogDebug(
             "Fee calculation: Entry={}, InitialTP={}, FeeRate={:P}, TotalFees={} sats (${:F2}), AdjustedTP={}, RoundedTP={}",
             entryPrice,
-            takeProfit,
+            initialTakeProfit,
             feeRate,
             totalFeesInSats,
             totalFeesInUsd,
