@@ -263,15 +263,19 @@ public class TradeManager : ITradeManager
         // Add fees to desired profit to ensure we still profit the intended amount after fees
         var adjustedTakeprofit = entryPrice + desiredProfit + feesInUsd;
 
+        // Round to nearest 0.5 as required by LN Markets API
+        var roundedTakeprofit = Math.Round(adjustedTakeprofit * 2, MidpointRounding.AwayFromZero) / 2;
+
         logger?.LogDebug(
-            "Fee calculation: Entry={}, InitialTP={}, FeeRate={:P}, TotalFees={} sats (${:F2}), AdjustedTP={}",
+            "Fee calculation: Entry={}, InitialTP={}, FeeRate={:P}, TotalFees={} sats (${:F2}), AdjustedTP={}, RoundedTP={}",
             entryPrice,
             initialTakeprofit,
             feeRate,
             feesInSats,
             feesInUsd,
-            adjustedTakeprofit);
+            adjustedTakeprofit,
+            roundedTakeprofit);
 
-        return adjustedTakeprofit;
+        return roundedTakeprofit;
     }
 }
