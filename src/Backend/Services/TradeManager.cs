@@ -214,21 +214,23 @@ public class TradeManager : ITradeManager
         return user.balance - realMargin;
     }
 
-    private static decimal CalculateOpeningFee(int quantity, decimal entryPrice, decimal feeRate)
+    private static decimal CalculateOpeningFeeSats(int quantity, decimal entryPrice, decimal feeRate)
     {
-        return (quantity / entryPrice) * feeRate;
+        // LN Markets formula: (Quantity / Entry price) × Fee Rate × 100,000,000
+        return (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
     }
 
-    private static decimal CalculateClosingFee(int quantity, decimal takeprofitPrice, decimal feeRate)
+    private static decimal CalculateClosingFeeSats(int quantity, decimal takeprofitPrice, decimal feeRate)
     {
-        return (quantity / takeprofitPrice) * feeRate;
+        // LN Markets formula: (Quantity / Takeprofit price) × Fee Rate × 100,000,000
+        return (quantity / takeprofitPrice) * feeRate * Constants.SatoshisPerBitcoin;
     }
 
-    private static decimal CalculateTotalTradingFees(int quantity, decimal entryPrice, decimal takeprofitPrice, decimal feeRate)
+    private static decimal CalculateTotalTradingFeesSats(int quantity, decimal entryPrice, decimal takeprofitPrice, decimal feeRate)
     {
-        var openingFee = CalculateOpeningFee(quantity, entryPrice, feeRate);
-        var closingFee = CalculateClosingFee(quantity, takeprofitPrice, feeRate);
-        return openingFee + closingFee;
+        var openingFeeSats = CalculateOpeningFeeSats(quantity, entryPrice, feeRate);
+        var closingFeeSats = CalculateClosingFeeSats(quantity, takeprofitPrice, feeRate);
+        return openingFeeSats + closingFeeSats;
     }
 
     private static decimal GetFeeRateFromTier(decimal feeTier)
@@ -252,16 +254,13 @@ public class TradeManager : ITradeManager
     private static decimal CalculateFeeAdjustedTakeprofit(decimal entryPrice, int desiredProfit, int quantity, decimal feeRate, ILogger? logger = null)
     {
         var initialTakeprofit = entryPrice + desiredProfit;
-        var totalFees = CalculateTotalTradingFees(quantity, entryPrice, initialTakeprofit, feeRate);
+        var totalFeesInSats = CalculateTotalTradingFeesSats(quantity, entryPrice, initialTakeprofit, feeRate);
 
-        // Convert fees from decimal (fraction of BTC) to satoshis, then to USD
-        // This matches LN Markets formula: (Quantity / Price) × Fee Rate × SATS_PER_BTC
-        var btcInSat = Constants.SatoshisPerBitcoin;
-        var feesInSats = totalFees * btcInSat;
-        var feesInUsd = feesInSats * entryPrice / btcInSat;
+        // Convert satoshi fees to USD: feesInSats * currentPrice / 100,000,000
+        var totalFeesInUsd = totalFeesInSats * entryPrice / Constants.SatoshisPerBitcoin;
 
         // Add fees to desired profit to ensure we still profit the intended amount after fees
-        var adjustedTakeprofit = entryPrice + desiredProfit + feesInUsd;
+        var adjustedTakeprofit = entryPrice + desiredProfit + totalFeesInUsd;
 
         // Round to nearest 0.5 as required by LN Markets API
         var roundedTakeprofit = Math.Round(adjustedTakeprofit * 2, MidpointRounding.AwayFromZero) / 2;
@@ -271,8 +270,8 @@ public class TradeManager : ITradeManager
             entryPrice,
             initialTakeprofit,
             feeRate,
-            feesInSats,
-            feesInUsd,
+            totalFeesInSats,
+            totalFeesInUsd,
             adjustedTakeprofit,
             roundedTakeprofit);
 
