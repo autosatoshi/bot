@@ -250,18 +250,39 @@ public class TradeManager : ITradeManager
         // Add fees to desired profit to ensure we still profit the intended amount after fees
         var adjustedTakeprofit = initialTakeProfit + totalFeesInUsd;
 
-        // Round to nearest dollar as required by LN Markets API
-        var roundedTakeprofit = Math.Ceiling(adjustedTakeprofit);
+        // Smart rounding to ensure fee compensation is never lost:
+        // - If any fee adjustment exists, always round UP by at least $0.50
+        // - If no fees, use standard 0.5 increment rounding
+        decimal roundedTakeprofit;
+        if (totalFeesInUsd > 0)
+        {
+            // Calculate minimum adjustment needed (at least $0.50)
+            var minimumAdjustment = Math.Max(0.50m, totalFeesInUsd);
+            var guaranteedTakeprofit = initialTakeProfit + minimumAdjustment;
 
-        logger?.LogDebug(
-            "Fee calculation: Entry={}, InitialTP={}, FeeRate={:P}, TotalFees={} sats (${:F2}), AdjustedTP={}, RoundedTP={}",
+            // Round up to nearest 0.5 to ensure we always overcompensate for fees
+            roundedTakeprofit = Math.Ceiling(guaranteedTakeprofit * 2) / 2;
+        }
+        else
+        {
+            // No fees detected, use standard rounding
+            roundedTakeprofit = Math.Round(adjustedTakeprofit * 2, MidpointRounding.AwayFromZero) / 2;
+        }
+
+        var actualAdjustment = roundedTakeprofit - initialTakeProfit;
+
+        logger?.LogInformation(
+            "Smart fee adjustment: Entry=${}, DesiredProfit=${}, Quantity=${}" +
+            "\n\tCalculated fees: {} sats (${:F4}), MinAdjustment=${:F2}" +
+            "\n\tFinal takeprofit: ${} (net adjustment: +${:F2})",
             entryPrice,
-            initialTakeProfit,
-            feeRate,
+            takeProfit,
+            quantity,
             totalFeesInSats,
             totalFeesInUsd,
-            adjustedTakeprofit,
-            roundedTakeprofit);
+            totalFeesInUsd > 0 ? Math.Max(0.50m, totalFeesInUsd) : 0,
+            roundedTakeprofit,
+            actualAdjustment);
 
         return roundedTakeprofit;
     }
