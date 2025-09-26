@@ -97,6 +97,16 @@ public class LnMarketsApiService : ILnMarketsApiService
         }
     }
 
+    private static string FormatPriceForApi(decimal price)
+    {
+        // Round to 2 decimal places for precision, but format as clean number
+        var rounded = Math.Round(price, 2, MidpointRounding.AwayFromZero);
+
+        // Use invariant culture and remove trailing zeros
+        var formatted = rounded.ToString("0.##", CultureInfo.InvariantCulture);
+        return formatted;
+    }
+
     private void SetLnMarketsHeaders(string key, string passphrase, string signature, long timestamp)
     {
         _httpClient.DefaultRequestHeaders.Clear();
