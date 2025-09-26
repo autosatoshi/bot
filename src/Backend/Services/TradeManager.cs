@@ -250,15 +250,20 @@ public class TradeManager : ITradeManager
         // Add fees to desired profit to ensure we still profit the intended amount after fees
         var adjustedTakeprofit = initialTakeProfit + totalFeesInUsd;
 
-        // Smart rounding to ensure fee compensation is never lost:
-        // - If any fee adjustment exists, always round UP by at least $0.50
-        // - If no fees, use standard 0.5 increment rounding
+        // Smart rounding to ensure fee compensation scales with trade size:
+        // - Use actual calculated fees with 10% safety buffer
+        // - Always round UP to ensure overcompensation
+        // - Minimum adjustment of $1.00 for API compliance
         decimal roundedTakeprofit;
         if (totalFeesInUsd > 0)
         {
-            // Calculate minimum adjustment needed (at least $0.50)
-            var minimumAdjustment = Math.Max(0.50m, totalFeesInUsd);
-            var guaranteedTakeprofit = initialTakeProfit + minimumAdjustment;
+            // Scale adjustment with actual fees + 10% safety buffer
+            var feeAdjustmentWithBuffer = totalFeesInUsd * 1.1m;
+
+            // Ensure minimum $1.00 adjustment for API rounding requirements
+            var scaledAdjustment = Math.Max(1.00m, feeAdjustmentWithBuffer);
+
+            var guaranteedTakeprofit = initialTakeProfit + scaledAdjustment;
 
             // Round up to nearest 0.5 to ensure we always overcompensate for fees
             roundedTakeprofit = Math.Ceiling(guaranteedTakeprofit * 2) / 2;
@@ -272,15 +277,15 @@ public class TradeManager : ITradeManager
         var actualAdjustment = roundedTakeprofit - initialTakeProfit;
 
         logger?.LogInformation(
-            "Smart fee adjustment: Entry=${}, DesiredProfit=${}, Quantity=${}" +
-            "\n\tCalculated fees: {} sats (${:F4}), MinAdjustment=${:F2}" +
+            "Scaled fee adjustment: Entry=${}, DesiredProfit=${}, Quantity=${}" +
+            "\n\tCalculated fees: {} sats (${:F4}), SafetyBuffer=10%, ScaledAdjustment=${:F2}" +
             "\n\tFinal takeprofit: ${} (net adjustment: +${:F2})",
             entryPrice,
             takeProfit,
             quantity,
             totalFeesInSats,
             totalFeesInUsd,
-            totalFeesInUsd > 0 ? Math.Max(0.50m, totalFeesInUsd) : 0,
+            totalFeesInUsd > 0 ? Math.Max(1.00m, totalFeesInUsd * 1.1m) : 0,
             roundedTakeprofit,
             actualAdjustment);
 
