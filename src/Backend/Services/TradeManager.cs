@@ -247,45 +247,32 @@ public class TradeManager : ITradeManager
         // Convert satoshi fees to USD: feesInSats * currentPrice / 100,000,000
         var totalFeesInUsd = totalFeesInSats * entryPrice / Constants.SatoshisPerBitcoin;
 
-        // Add fees to desired profit to ensure we still profit the intended amount after fees
-        var adjustedTakeprofit = initialTakeProfit + totalFeesInUsd;
+        // CONSERVATIVE FEE COMPENSATION: Use 50% safety buffer to ensure NET P&L >= 0
+        var conservativeFeeBuffer = totalFeesInUsd * 1.5m;
 
-        // Smart rounding to ensure fee compensation scales with trade size:
-        // - Use actual calculated fees with 10% safety buffer
-        // - Always round UP to ensure overcompensation
-        // - Minimum adjustment of $1.00 for API compliance
-        decimal roundedTakeprofit;
-        if (totalFeesInUsd > 0)
-        {
-            // Scale adjustment with actual fees + 10% safety buffer
-            var feeAdjustmentWithBuffer = totalFeesInUsd * 1.1m;
+        // Ensure minimum profit guarantee: add at least $2.00 to cover any unaccounted fees
+        // This accounts for potential rounding errors, carry fees, and market slippage
+        var minimumProfitGuarantee = Math.Max(2.00m, conservativeFeeBuffer);
 
-            // Ensure minimum $1.00 adjustment for API rounding requirements
-            var scaledAdjustment = Math.Max(1.00m, feeAdjustmentWithBuffer);
+        // Add fee compensation to the takeprofit target
+        var guaranteedTakeprofit = initialTakeProfit + minimumProfitGuarantee;
 
-            var guaranteedTakeprofit = initialTakeProfit + scaledAdjustment;
-
-            // Round up to nearest 0.5 to ensure we always overcompensate for fees
-            roundedTakeprofit = Math.Ceiling(guaranteedTakeprofit * 2) / 2;
-        }
-        else
-        {
-            // No fees detected, use standard rounding
-            roundedTakeprofit = Math.Round(adjustedTakeprofit * 2, MidpointRounding.AwayFromZero) / 2;
-        }
+        // Always round UP to the nearest $1.00 to ensure overcompensation
+        // This prevents any scenario where rounding could reduce our safety buffer
+        var roundedTakeprofit = Math.Ceiling(guaranteedTakeprofit);
 
         var actualAdjustment = roundedTakeprofit - initialTakeProfit;
 
         logger?.LogInformation(
-            "Scaled fee adjustment: Entry=${}, DesiredProfit=${}, Quantity=${}" +
-            "\n\tCalculated fees: {} sats (${:F4}), SafetyBuffer=10%, ScaledAdjustment=${:F2}" +
-            "\n\tFinal takeprofit: ${} (net adjustment: +${:F2})",
+            "Conservative fee adjustment: Entry=${}, DesiredProfit=${}, Quantity=${}" +
+            "\n\tCalculated fees: {} sats (${:F4}), SafetyBuffer=50%, MinGuarantee=${:F2}" +
+            "\n\tFinal takeprofit: ${} (net adjustment: +${:F2}) - Guarantees NET P&L >= 0",
             entryPrice,
             takeProfit,
             quantity,
             totalFeesInSats,
             totalFeesInUsd,
-            totalFeesInUsd > 0 ? Math.Max(1.00m, totalFeesInUsd * 1.1m) : 0,
+            minimumProfitGuarantee,
             roundedTakeprofit,
             actualAdjustment);
 
