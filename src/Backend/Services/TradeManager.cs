@@ -240,7 +240,7 @@ public class TradeManager : ITradeManager
         var openingFeeSats = (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
 
         // LN Markets formula: (Quantity / Takeprofit price) × Fee Rate × 100,000,000
-        var closingFeeSats = (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
+        var closingFeeSats = (quantity / initialTakeProfit) * feeRate * Constants.SatoshisPerBitcoin;
 
         var totalFeesInSats = openingFeeSats + closingFeeSats;
 
