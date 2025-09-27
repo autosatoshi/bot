@@ -79,31 +79,14 @@ public class ProcessMarginManagementTests
     public async Task ProcessMarginManagement_WithTradeWithinLossLimit_ShouldAddMargin()
     {
         // Arrange
-        var runningTrade = new FuturesTradeModel
-        {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 1000m,
-            pl = -600m, // -60% loss (within -50% limit: -60% <= -50%)
-            price = 49000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTrade = TradeFactory.CreateLosingTrade(
+            quantity: 1m,
+            entryPrice: 49000m,
+            leverage: 1m,
+            side: "buy",
+            lossPercentage: -60m, // -60% loss (within -50% limit)
+            marginInSats: 1000m,
+            id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -126,31 +109,14 @@ public class ProcessMarginManagementTests
     public async Task ProcessMarginManagement_WithTradeExceedingLossLimit_ShouldNotAddMargin()
     {
         // Arrange
-        var runningTrade = new FuturesTradeModel
-        {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 1000m,
-            pl = -200m, // -20% loss (exceeds -50% limit: -20% > -50%)
-            price = 49000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTrade = TradeFactory.CreateLosingTrade(
+            quantity: 1m,
+            entryPrice: 49000m,
+            leverage: 1m,
+            side: "buy",
+            lossPercentage: -20m, // -20% loss (exceeds -50% limit: -20% > -50%)
+            marginInSats: 1000m,
+            id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -171,31 +137,17 @@ public class ProcessMarginManagementTests
     public async Task ProcessMarginManagement_WithZeroMargin_ShouldReturn()
     {
         // Arrange
-        var runningTrade = new FuturesTradeModel
-        {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 0m, // Invalid margin
-            pl = -100m,
-            price = 49000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTrade = TradeFactory.CreateLosingTrade(
+            quantity: 1m,
+            entryPrice: 49000m,
+            leverage: 1m,
+            side: "buy",
+            lossPercentage: -10m,
+            marginInSats: 1000m,
+            id: "trade-1");
+        
+        // Set invalid margin for this test
+        runningTrade.margin = 0m;
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -214,31 +166,17 @@ public class ProcessMarginManagementTests
     public async Task ProcessMarginManagement_WithNegativeMargin_ShouldReturn()
     {
         // Arrange
-        var runningTrade = new FuturesTradeModel
-        {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = -100m, // Invalid negative margin
-            pl = -100m,
-            price = 49000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTrade = TradeFactory.CreateLosingTrade(
+            quantity: 1m,
+            entryPrice: 49000m,
+            leverage: 1m,
+            side: "buy",
+            lossPercentage: -10m,
+            marginInSats: 1000m,
+            id: "trade-1");
+        
+        // Set invalid negative margin for this test
+        runningTrade.margin = -100m;
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -267,31 +205,14 @@ public class ProcessMarginManagementTests
             synthetic_usd_balance = 5m // Less than AddMarginInUsd (10)
         };
 
-        var runningTrade = new FuturesTradeModel
-        {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 1000m,
-            pl = -600m, // -60% loss (within -50% limit)
-            price = 49000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTrade = TradeFactory.CreateLosingTrade(
+            quantity: 1m,
+            entryPrice: 49000m,
+            leverage: 1m,
+            side: "buy",
+            lossPercentage: -60m, // -60% loss (within -50% limit)
+            marginInSats: 1000m,
+            id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -368,31 +289,14 @@ public class ProcessMarginManagementTests
     public async Task ProcessMarginManagement_WhenApiCallFails_ShouldReturn()
     {
         // Arrange
-        var runningTrade = new FuturesTradeModel
-        {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 1000m,
-            pl = -200m,
-            price = 49000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTrade = TradeFactory.CreateLosingTrade(
+            quantity: 1m,
+            entryPrice: 49000m,
+            leverage: 1m,
+            side: "buy",
+            lossPercentage: -20m,
+            marginInSats: 1000m,
+            id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -412,31 +316,16 @@ public class ProcessMarginManagementTests
     public async Task ProcessMarginManagement_WithZeroCalculatedMargin_ShouldNotAddMargin()
     {
         // Arrange - Create scenario where CalculateMarginToAdd returns 0
-        var runningTrade = new FuturesTradeModel
-        {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 2000m, // High existing margin
-            pl = -200m,
-            price = 50000m, // Same as current price
-            quantity = 2m, // High quantity to make maxMargin calculation result in 0 additional margin
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTrade = TradeFactory.CreateTrade(
+            quantity: 2m,
+            entryPrice: 50000m, // Same as current price in _defaultPriceData
+            leverage: 1m,
+            side: "buy",
+            currentPrice: 50000m, // Same as entry price - no P&L
+            id: "trade-1");
+        
+        // Set high existing margin to ensure maxMargin calculation results in 0 additional margin
+        runningTrade.margin = 2000m;
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         

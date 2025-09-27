@@ -97,4 +97,69 @@ public static class TradeFactory
             sum_carry_fees = 0m
         };
     }
+
+    public static FuturesTradeModel CreateLosingTrade(
+        decimal quantity,
+        decimal entryPrice,
+        decimal leverage,
+        string side,
+        decimal lossPercentage,
+        decimal? marginInSats = null,
+        string? id = null,
+        string uid = "test-uid")
+    {
+        if (side != "buy" && side != "sell")
+            throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
+        
+        if (lossPercentage >= 0)
+            throw new ArgumentException("Loss percentage must be negative", nameof(lossPercentage));
+
+        // Calculate margin if not provided
+        decimal calculatedMarginInSats;
+        if (marginInSats.HasValue)
+        {
+            calculatedMarginInSats = marginInSats.Value;
+        }
+        else
+        {
+            var marginInUsd = quantity / leverage;
+            calculatedMarginInSats = marginInUsd * (SatoshisPerBitcoin / entryPrice);
+        }
+
+        var pl = (lossPercentage / 100m) * calculatedMarginInSats;
+
+        var maintenanceMarginInSats = calculatedMarginInSats * 0.05m;
+
+        var liquidationPrice = CalculateLiquidationPrice(
+            entryPrice, 
+            quantity, 
+            calculatedMarginInSats, 
+            side);
+
+        return new FuturesTradeModel
+        {
+            id = id ?? Guid.NewGuid().ToString(),
+            uid = uid,
+            type = "futures",
+            side = side,
+            margin = Math.Round(calculatedMarginInSats, 0),
+            pl = Math.Round(pl, 0),
+            price = entryPrice,
+            quantity = quantity,
+            leverage = leverage,
+            liquidation = Math.Round(liquidationPrice, 1),
+            stoploss = 0m,
+            takeprofit = side == "buy" ? entryPrice * 1.1m : entryPrice * 0.9m,
+            creation_ts = 1640995200,
+            open = false,
+            running = true,
+            canceled = false,
+            closed = false,
+            last_update_ts = 1640995200,
+            opening_fee = 0m,
+            closing_fee = 0m,
+            maintenance_margin = Math.Round(maintenanceMarginInSats, 0),
+            sum_carry_fees = 0m
+        };
+    }
 }
