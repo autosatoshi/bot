@@ -309,62 +309,43 @@ public class ProcessMarginManagementTests
     }
 
     [Fact]
-    public async Task ProcessMarginManagement_WithMultipleTrades_ShouldProcessAll()
+    public async Task ProcessMarginManagement_WithMultipleTrades_ShouldProcessOnlyBelowMaxLoss()
     {
-        // Arrange
-        var trade1 = new FuturesTradeModel
+        const decimal currentPrice = 99000m;
+
+        // Arrange - Create trades using TradeFactory
+        var trade1 = TradeFactory.CreateTrade(
+            quantity: 1000m,
+            entryPrice: 100000m,
+            leverage: 80m,
+            side: "buy",
+            currentPrice: currentPrice,
+            id: "trade-1");
+        
+        var trade2 = TradeFactory.CreateTrade(
+            quantity: 2000m,
+            entryPrice: 99750m,
+            leverage: 95m,
+            side: "buy",
+            currentPrice: currentPrice,
+            id: "trade-2");
+
+        var trade3 = TradeFactory.CreateTrade(
+            quantity: 2000m,
+            entryPrice: 99500m,
+            leverage: 95m,
+            side: "buy",
+            currentPrice: currentPrice,
+            id: "trade-3");
+
+        var priceDataForLossTrades = new LastPriceData
         {
-            id = "trade-1",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 1000m,
-            pl = -600m, // -60% loss (within -50% limit)
-            price = 49000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 51000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
+            LastPrice = currentPrice,
+            LastTickDirection = "down",
+            Time = "1640995200"
         };
 
-        var trade2 = new FuturesTradeModel
-        {
-            id = "trade-2",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            margin = 2000m,
-            pl = -1200m, // -60% loss (within -50% limit)
-            price = 48000m,
-            quantity = 1m,
-            leverage = 1m,
-            liquidation = 44000m,
-            stoploss = 0m,
-            takeprofit = 50000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
-
-        var runningTrades = new List<FuturesTradeModel> { trade1, trade2 };
+        var runningTrades = new List<FuturesTradeModel> { trade1, trade2, trade3 };
         
         _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
@@ -374,11 +355,12 @@ public class ProcessMarginManagementTests
             .ReturnsAsync(true);
 
         // Act
-        await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
+        await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, priceDataForLossTrades, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10408), Times.Once);
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", 833), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10100), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", 10100), Times.Once);
+        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-3", It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 20), Times.Once); // 2 trades * 10 USD
     }
 
