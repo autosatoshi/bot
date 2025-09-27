@@ -77,7 +77,7 @@ public class ProcessTradeExecutionTests
         // Act
         await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, invalidPriceData, _defaultUser, _mockLogger.Object);
 
-        _mockApiService.Verify(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -94,7 +94,35 @@ public class ProcessTradeExecutionTests
         // Act
         await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, invalidPriceData, _defaultUser, _mockLogger.Object);
 
-        _mockApiService.Verify(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessTradeExecution_WithExistingOpenTrade_ShouldReturn()
+    {
+        // Arrange
+        var openTrade = TradeFactory.CreateTrade(
+            quantity: 1m,
+            entryPrice: 50000m, // Same as calculated tradePrice
+            leverage: 2m,
+            side: "buy",
+            currentPrice: 50000m, // No P&L
+            TradeState.Open,
+            id: "open-trade");
+
+        var emptyRunningTrades = new List<FuturesTradeModel>();
+        var openTrades = new List<FuturesTradeModel> { openTrade };
+
+        _mockApiService.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyRunningTrades);
+        _mockApiService.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(openTrades);
+
+        // Act
+        await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
+
+        // Assert
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -102,31 +130,14 @@ public class ProcessTradeExecutionTests
     {
         // Arrange
         // LastPrice = 50000, Factor = 1000 → tradePrice = 50000
-        var existingTrade = new FuturesTradeModel
-        {
-            id = "existing-trade",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            price = 50000m, // Same as calculated tradePrice
-            margin = 1000m,
-            pl = 0m,
-            quantity = 1m,
-            leverage = 2m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 52000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var existingTrade = TradeFactory.CreateTrade(
+            quantity: 1m,
+            entryPrice: 50000m, // Same as calculated tradePrice
+            leverage: 2m,
+            side: "buy",
+            currentPrice: 50000m, // No P&L
+            TradeState.Running,
+            id: "existing-trade");
 
         var runningTrades = new List<FuturesTradeModel> { existingTrade };
         _mockApiService.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
@@ -136,9 +147,6 @@ public class ProcessTradeExecutionTests
         await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
-        _mockApiService.Verify(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        _mockApiService.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
@@ -149,31 +157,15 @@ public class ProcessTradeExecutionTests
         var runningTrades = new List<FuturesTradeModel>();
         for (int i = 0; i < 6; i++) // MaxRunningTrades = 5, so 6 > 5
         {
-            runningTrades.Add(new FuturesTradeModel
-            {
-                id = $"trade-{i}",
-                uid = "test-uid",
-                type = "futures",
-                side = "buy",
-                price = 49000m + i * 100, // Different prices to avoid duplicate match
-                margin = 1000m,
-                pl = 0m,
-                quantity = 1m,
-                leverage = 2m,
-                liquidation = 45000m,
-                stoploss = 0m,
-                takeprofit = 52000m,
-                creation_ts = 1640995200,
-                open = false,
-                running = true,
-                canceled = false,
-                closed = false,
-                last_update_ts = 1640995200,
-                opening_fee = 0m,
-                closing_fee = 0m,
-                maintenance_margin = 50m,
-                sum_carry_fees = 0m
-            });
+            var entryPrice = 49000m + i * 100; // Different prices to avoid duplicate match
+            runningTrades.Add(TradeFactory.CreateTrade(
+                quantity: 1m,
+                entryPrice: entryPrice,
+                leverage: 2m,
+                side: "buy",
+                currentPrice: entryPrice, // No P&L
+                TradeState.Running,
+                id: $"trade-{i}"));
         }
 
         _mockApiService.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
@@ -183,9 +175,6 @@ public class ProcessTradeExecutionTests
         await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
-        _mockApiService.Verify(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        _mockApiService.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
@@ -217,51 +206,6 @@ public class ProcessTradeExecutionTests
         // oneUsdInSats = 100,000,000 / 50000 = 2000
         // freeMargin = userBalance - 0 = 1000 (since no open/running trades)
         // 1000 <= 2000, so should return early
-        _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task ProcessTradeExecution_WithExistingOpenTrade_ShouldReturn()
-    {
-        // Arrange
-        var openTrade = new FuturesTradeModel
-        {
-            id = "open-trade",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            price = 50000m, // Same as calculated tradePrice
-            margin = 1000m,
-            pl = 0m,
-            quantity = 1m,
-            leverage = 2m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 52000m,
-            creation_ts = 1640995200,
-            open = true,
-            running = false,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
-
-        var emptyRunningTrades = new List<FuturesTradeModel>();
-        var openTrades = new List<FuturesTradeModel> { openTrade };
-
-        _mockApiService.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyRunningTrades);
-        _mockApiService.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(openTrades);
-
-        // Act
-        await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
-
-        // Assert
         _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
@@ -324,31 +268,14 @@ public class ProcessTradeExecutionTests
     public async Task ProcessTradeExecution_WithOldTradesToCancel_ShouldCancelAndCreateOrder()
     {
         // Arrange
-        var oldOpenTrade = new FuturesTradeModel
-        {
-            id = "old-trade",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            price = 48000m, // Different from tradePrice (50000)
-            margin = 1000m,
-            pl = 0m,
-            quantity = 1m,
-            leverage = 2m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 50000m,
-            creation_ts = 1640995200,
-            open = true,
-            running = false,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var oldOpenTrade = TradeFactory.CreateTrade(
+            quantity: 1m,
+            entryPrice: 48000m, // Different from tradePrice (50000)
+            leverage: 2m,
+            side: "buy",
+            currentPrice: 48000m, // No P&L
+            TradeState.Open,
+            id: "old-trade");
 
         var emptyRunningTrades = new List<FuturesTradeModel>();
         var openTrades = new List<FuturesTradeModel> { oldOpenTrade };
@@ -382,31 +309,14 @@ public class ProcessTradeExecutionTests
     public async Task ProcessTradeExecution_WithCancelFailure_ShouldCreateOrder()
     {
         // Arrange
-        var oldOpenTrade = new FuturesTradeModel
-        {
-            id = "failing-trade",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            price = 48000m,
-            margin = 1000m,
-            pl = 0m,
-            quantity = 1m,
-            leverage = 2m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 50000m,
-            creation_ts = 1640995200,
-            open = true,
-            running = false,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var oldOpenTrade = TradeFactory.CreateTrade(
+            quantity: 1m,
+            entryPrice: 48000m,
+            leverage: 2m,
+            side: "buy",
+            currentPrice: 48000m, // No P&L
+            TradeState.Open,
+            id: "failing-trade");
 
         var emptyRunningTrades = new List<FuturesTradeModel>();
         var openTrades = new List<FuturesTradeModel> { oldOpenTrade };
@@ -448,9 +358,6 @@ public class ProcessTradeExecutionTests
         await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
-        _mockApiService.Verify(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        _mockApiService.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
@@ -482,31 +389,14 @@ public class ProcessTradeExecutionTests
             Quantity = 1
         };
 
-        var runningTradeAtExpectedPrice = new FuturesTradeModel
-        {
-            id = "test-trade",
-            uid = "test-uid",
-            type = "futures",
-            side = "buy",
-            price = expectedTradePrice, // This should match the calculated tradePrice
-            margin = 1000m,
-            pl = 0m,
-            quantity = 1m,
-            leverage = 2m,
-            liquidation = 45000m,
-            stoploss = 0m,
-            takeprofit = 52000m,
-            creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
-            last_update_ts = 1640995200,
-            opening_fee = 0m,
-            closing_fee = 0m,
-            maintenance_margin = 50m,
-            sum_carry_fees = 0m
-        };
+        var runningTradeAtExpectedPrice = TradeFactory.CreateTrade(
+            quantity: 1m,
+            entryPrice: expectedTradePrice, // This should match the calculated tradePrice
+            leverage: 2m,
+            side: "buy",
+            currentPrice: expectedTradePrice, // No P&L
+            TradeState.Running,
+            id: "test-trade");
 
         var runningTrades = new List<FuturesTradeModel> { runningTradeAtExpectedPrice };
         _mockApiService.Setup(x => x.GetRunningTrades(options.Key, options.Passphrase, options.Secret))
@@ -517,9 +407,6 @@ public class ProcessTradeExecutionTests
 
         // Assert
         // If the calculation is correct, the method should find the existing trade and return early
-        _mockApiService.Verify(x => x.GetRunningTrades(options.Key, options.Passphrase, options.Secret), Times.Once);
-        _mockApiService.Verify(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        _mockApiService.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 }

@@ -2,9 +2,29 @@ using AutoBot.Models.LnMarkets;
 
 namespace AutoBot.Tests.Services;
 
+public enum TradeState
+{
+    Running,  // open = false, running = true
+    Open,     // open = true, running = false
+    Closed,   // open = false, running = false, closed = true
+    Canceled  // open = false, running = false, canceled = true
+}
+
 public static class TradeFactory
 {
     private const decimal SatoshisPerBitcoin = 100_000_000m;
+
+    private static (bool open, bool running, bool canceled, bool closed) GetTradeStateFlags(TradeState state)
+    {
+        return state switch
+        {
+            TradeState.Running => (false, true, false, false),
+            TradeState.Open => (true, false, false, false),
+            TradeState.Closed => (false, false, false, true),
+            TradeState.Canceled => (false, false, true, false),
+            _ => throw new ArgumentException("Invalid trade state", nameof(state))
+        };
+    }
 
     public static decimal CalculatePLFromActualPrice(decimal quantityInUsd, decimal entryPriceInUsd, decimal currentPriceInUsd)
     {
@@ -44,6 +64,7 @@ public static class TradeFactory
         decimal leverage,
         string side,
         decimal currentPrice,
+        TradeState state,
         string? id = null,
         string uid = "test-uid")
     {
@@ -71,6 +92,9 @@ public static class TradeFactory
             marginInSats, 
             side);
 
+        // Set trade state flags based on enum
+        var (open, running, canceled, closed) = GetTradeStateFlags(state);
+
         return new FuturesTradeModel
         {
             id = id ?? Guid.NewGuid().ToString(),
@@ -86,10 +110,10 @@ public static class TradeFactory
             stoploss = 0m,
             takeprofit = side == "buy" ? entryPrice * 1.1m : entryPrice * 0.9m,
             creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
+            open = open,
+            running = running,
+            canceled = canceled,
+            closed = closed,
             last_update_ts = 1640995200,
             opening_fee = 0m,
             closing_fee = 0m,
@@ -104,6 +128,7 @@ public static class TradeFactory
         decimal leverage,
         string side,
         decimal lossPercentage,
+        TradeState state,
         decimal? marginInSats = null,
         string? id = null,
         string uid = "test-uid")
@@ -136,6 +161,9 @@ public static class TradeFactory
             calculatedMarginInSats, 
             side);
 
+        // Set trade state flags based on enum
+        var (open, running, canceled, closed) = GetTradeStateFlags(state);
+
         return new FuturesTradeModel
         {
             id = id ?? Guid.NewGuid().ToString(),
@@ -151,10 +179,10 @@ public static class TradeFactory
             stoploss = 0m,
             takeprofit = side == "buy" ? entryPrice * 1.1m : entryPrice * 0.9m,
             creation_ts = 1640995200,
-            open = false,
-            running = true,
-            canceled = false,
-            closed = false,
+            open = open,
+            running = running,
+            canceled = canceled,
+            closed = closed,
             last_update_ts = 1640995200,
             opening_fee = 0m,
             closing_fee = 0m,

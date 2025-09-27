@@ -85,6 +85,7 @@ public class ProcessMarginManagementTests
             leverage: 1m,
             side: "buy",
             lossPercentage: -60m, // -60% loss (within -50% limit)
+            TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
 
@@ -115,6 +116,7 @@ public class ProcessMarginManagementTests
             leverage: 1m,
             side: "buy",
             lossPercentage: -20m, // -20% loss (exceeds -50% limit: -20% > -50%)
+            TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
 
@@ -143,6 +145,7 @@ public class ProcessMarginManagementTests
             leverage: 1m,
             side: "buy",
             lossPercentage: -10m,
+            TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
         
@@ -172,6 +175,7 @@ public class ProcessMarginManagementTests
             leverage: 1m,
             side: "buy",
             lossPercentage: -10m,
+            TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
         
@@ -211,6 +215,7 @@ public class ProcessMarginManagementTests
             leverage: 1m,
             side: "buy",
             lossPercentage: -60m, // -60% loss (within -50% limit)
+            TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
 
@@ -241,6 +246,7 @@ public class ProcessMarginManagementTests
             leverage: 80m,
             side: "buy",
             currentPrice: currentPrice,
+            TradeState.Running,
             id: "trade-1");
         
         var trade2 = TradeFactory.CreateTrade(
@@ -249,6 +255,7 @@ public class ProcessMarginManagementTests
             leverage: 95m,
             side: "buy",
             currentPrice: currentPrice,
+            TradeState.Running,
             id: "trade-2");
 
         var trade3 = TradeFactory.CreateTrade(
@@ -257,6 +264,7 @@ public class ProcessMarginManagementTests
             leverage: 95m,
             side: "buy",
             currentPrice: currentPrice,
+            TradeState.Running,
             id: "trade-3");
 
         var priceDataForLossTrades = new LastPriceData
@@ -295,6 +303,7 @@ public class ProcessMarginManagementTests
             leverage: 1m,
             side: "buy",
             lossPercentage: -20m,
+            TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
 
@@ -322,6 +331,7 @@ public class ProcessMarginManagementTests
             leverage: 1m,
             side: "buy",
             currentPrice: 50000m, // Same as entry price - no P&L
+            TradeState.Running,
             id: "trade-1");
         
         // Set high existing margin to ensure maxMargin calculation results in 0 additional margin
