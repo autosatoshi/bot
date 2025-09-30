@@ -93,6 +93,14 @@ public static class TradeFactory
         string? id = null,
         string uid = "test-uid")
     {
+        if (leverage <= 0)
+            throw new ArgumentOutOfRangeException(nameof(leverage), "Leverage must be greater than 0");
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than 0");
+        if (entryPrice <= 0)
+            throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
+        if (currentPrice <= 0)
+            throw new ArgumentOutOfRangeException(nameof(currentPrice), "Current price must be greater than 0");
         if (side != "buy" && side != "sell")
             throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
 
