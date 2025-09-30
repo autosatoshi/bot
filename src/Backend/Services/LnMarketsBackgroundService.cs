@@ -69,11 +69,6 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
                                     {
                                         message = await AssembleFragmentedMessageAsync(client, buffer, result, linkedCts.Token, _logger);
                                     }
-                                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                                    {
-                                        // Let outer cancellation path handle graceful shutdown
-                                        throw;
-                                    }
                                     catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
                                     {
                                         if (client.State == WebSocketState.Open)
@@ -109,7 +104,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Background service stopping due to cancellation");
-                break;
+                return;
             }
             catch (Exception ex)
             {
