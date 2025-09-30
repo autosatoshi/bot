@@ -29,7 +29,7 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
 
         _options = new LnMarketsOptions
         {
-            Endpoint = "wss://test.endpoint",
+            Endpoint = "https://test.endpoint",
             Key = "test-key",
             Passphrase = "test-passphrase", 
             Secret = "test-secret",
