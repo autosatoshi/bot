@@ -1,7 +1,8 @@
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
-using AutoBot.Services;
 using Microsoft.Extensions.Options;
+
+namespace AutoBot.Services;
 
 public class TradeManager : ITradeManager
 {
