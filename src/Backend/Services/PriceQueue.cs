@@ -72,9 +72,22 @@ public class PriceQueue : IPriceQueue, IDisposable
 
     public void UpdatePrice(LastPriceData data)
     {
+        if (data == null)
+        {
+            _logger.LogDebug("Ignoring null price data");
+            return;
+        }
+
         if (!_queue.IsAddingCompleted)
         {
-            _queue.Add(data);
+            try
+            {
+                _queue.Add(data);
+            }
+            catch (InvalidOperationException)
+            {
+                // Queue may have been completed between check and Add call - ignore
+            }
         }
     }
 
