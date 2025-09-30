@@ -140,7 +140,7 @@ public static class TradeFactory
             type = "futures",
             side = side,
             margin = Math.Floor(marginInSats),
-            pl = Math.Round(pl, 0),
+            pl = RoundPL(pl),
             price = entryPrice,
             quantity = quantity,
             leverage = leverage,
@@ -224,7 +224,7 @@ public static class TradeFactory
             type = "futures",
             side = side,
             margin = Math.Floor(calculatedMarginInSats),
-            pl = Math.Round(pl, 0),
+            pl = RoundPL(pl),
             price = entryPrice,
             quantity = quantity,
             leverage = leverage,
@@ -267,20 +267,14 @@ public static class TradeFactory
         return Math.Round(liquidationPrice, 0); // Standard rounding for other cases
     }
 
-    private static decimal CalculateLiquidationPriceSimple(decimal entryPrice, decimal quantity, decimal leverage, string side)
+    private static decimal RoundPL(decimal pl)
     {
-        // Standard liquidation formula: entryPrice +/- (marginUsd / positionSizeBtc)
-        var marginUsd = quantity / leverage;
-        var positionSizeBtc = quantity / entryPrice;
-        var priceMove = marginUsd / positionSizeBtc;
+        // LN Markets appears to use floor for negative P&L (losses) to be more conservative
+        if (pl < 0)
+        {
+            return Math.Floor(pl);
+        }
         
-        if (string.Equals(side, "buy", StringComparison.OrdinalIgnoreCase))
-        {
-            return entryPrice - priceMove; // For long positions, liquidation is below entry
-        }
-        else
-        {
-            return entryPrice + priceMove; // For short positions, liquidation is above entry
-        }
+        return Math.Round(pl, 0); // Standard rounding for positive P&L
     }
 }

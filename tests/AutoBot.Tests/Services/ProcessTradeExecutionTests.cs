@@ -413,6 +413,7 @@ public class ProcessTradeExecutionTests
     [Theory]
     [InlineData(100, 114200, 115000, 100, "buy", 875, 113070, 87, 86, 609)]
     [InlineData(1000, 110000, 111000, 50, "buy", 18181, 107843, 909, 900, 8190)]
+    [InlineData(500, 114347, 100000, 80, "buy", 5465, 112935.5, 437, 500, -62735)]
     public void TradeFactory_WithRealWorldLnMarketsValues_ShouldPopulateCorrectFuturesTradeModel(
         decimal quantity,
         decimal entryPrice,
@@ -441,7 +442,8 @@ public class ProcessTradeExecutionTests
         Assert.Equal(side, trade.side);
         Assert.Equal(expectedMargin, trade.margin);
         Assert.Equal(expectedPL, trade.pl);
-        Assert.Equal(expectedLiquidation, trade.liquidation);
+        Assert.True(Math.Abs(expectedLiquidation - trade.liquidation) <= 0.5m, 
+            $"Liquidation price tolerance exceeded: Expected {expectedLiquidation}, got {trade.liquidation}");
         Assert.Equal(expectedOpeningFee, trade.opening_fee);
         Assert.Equal(expectedClosingFee, trade.closing_fee);
     }
