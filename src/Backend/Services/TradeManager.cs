@@ -237,11 +237,12 @@ public class TradeManager : ITradeManager
         var initialTakeProfit = entryPrice + takeProfit;
 
         // LN Markets formula: (Quantity / Entry price) × Fee Rate × 100,000,000
-        var openingFeeSats = (quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin;
+        // IMPORTANT: LN Markets uses truncation (Math.Floor), not rounding for fee calculations
+        var openingFeeSats = Math.Floor((quantity / entryPrice) * feeRate * Constants.SatoshisPerBitcoin);
 
         // CRITICAL FIX: For closing fee calculation, we need to iteratively solve since closing price affects the fee
         // Start with estimated closing fee, then adjust takeprofit to compensate
-        var estimatedClosingFeeSats = (quantity / initialTakeProfit) * feeRate * Constants.SatoshisPerBitcoin;
+        var estimatedClosingFeeSats = Math.Floor((quantity / initialTakeProfit) * feeRate * Constants.SatoshisPerBitcoin);
 
         // Total estimated fees
         var totalEstimatedFeesInSats = openingFeeSats + estimatedClosingFeeSats;
@@ -259,7 +260,7 @@ public class TradeManager : ITradeManager
         var compensatedTakeprofit = initialTakeProfit + minimumFeeCompensation;
 
         // REFINEMENT: Recalculate closing fee with the new takeprofit price for accuracy
-        var refinedClosingFeeSats = (quantity / compensatedTakeprofit) * feeRate * Constants.SatoshisPerBitcoin;
+        var refinedClosingFeeSats = Math.Floor((quantity / compensatedTakeprofit) * feeRate * Constants.SatoshisPerBitcoin);
         var refinedTotalFeesInSats = openingFeeSats + refinedClosingFeeSats;
         var refinedTotalFeesInUsd = refinedTotalFeesInSats * entryPrice / Constants.SatoshisPerBitcoin;
 

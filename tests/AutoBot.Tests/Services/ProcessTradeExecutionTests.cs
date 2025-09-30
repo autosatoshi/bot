@@ -38,7 +38,8 @@ public class ProcessTradeExecutionTests
             role = "user",
             balance = 10000000, // 0.1 BTC in satoshis - should provide sufficient free margin
             username = "testuser",
-            synthetic_usd_balance = 5000m
+            synthetic_usd_balance = 5000m,
+            fee_tier = 0 // Tier 1: 0.1% fee rate
         };
 
         _defaultPriceData = new LastPriceData
@@ -407,5 +408,41 @@ public class ProcessTradeExecutionTests
         // Assert
         // If the calculation is correct, the method should find the existing trade and return early
         _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(100, 114200, 115000, 100, "buy", 875, 113070, 87, 86, 609)]
+    [InlineData(1000, 110000, 111000, 50, "buy", 18181, 107843, 909, 900, 8190)]
+    public void TradeFactory_WithRealWorldLnMarketsValues_ShouldPopulateCorrectFuturesTradeModel(
+        decimal quantity,
+        decimal entryPrice,
+        decimal exitPrice,
+        decimal leverage,
+        string side,
+        decimal expectedMargin,
+        decimal expectedLiquidation,
+        decimal expectedOpeningFee,
+        decimal expectedClosingFee,
+        decimal expectedPL)
+    {
+        // Act
+        var trade = TradeFactory.CreateTrade(
+            quantity: quantity,
+            entryPrice: entryPrice,
+            leverage: leverage,
+            side: side,
+            currentPrice: exitPrice,
+            TradeState.Open);
+
+        // Assert
+        Assert.Equal(quantity, trade.quantity);
+        Assert.Equal(entryPrice, trade.price);
+        Assert.Equal(leverage, trade.leverage);
+        Assert.Equal(side, trade.side);
+        Assert.Equal(expectedMargin, trade.margin);
+        Assert.Equal(expectedPL, trade.pl);
+        Assert.Equal(expectedLiquidation, trade.liquidation);
+        Assert.Equal(expectedOpeningFee, trade.opening_fee);
+        Assert.Equal(expectedClosingFee, trade.closing_fee);
     }
 }
