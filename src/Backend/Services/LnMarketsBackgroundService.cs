@@ -187,12 +187,13 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
     {
         logger?.LogDebug("Receiving fragmented WebSocket message");
 
-        var fragments = new List<byte[]> { buffer[..firstResult.Count] };
-        var totalLength = firstResult.Count;
+        using var ms = new MemoryStream();
+        ms.Write(buffer, 0, firstResult.Count);
 
         WebSocketReceiveResult result;
         do
         {
+            cancellationToken.ThrowIfCancellationRequested();
             result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
             if (result.MessageType != WebSocketMessageType.Text)
             {
@@ -200,22 +201,13 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
                 return null;
             }
 
-            fragments.Add(buffer[..result.Count]);
-            totalLength += result.Count;
+            ms.Write(buffer, 0, result.Count);
         }
         while (!result.EndOfMessage);
 
-        // Combine all fragments
-        var assembledMessage = new byte[totalLength];
-        var offset = 0;
-        foreach (var fragment in fragments)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            fragment.CopyTo(assembledMessage, offset);
-            offset += fragment.Length;
-        }
+        var assembledMessage = ms.ToArray();
 
-        logger?.LogDebug("Assembled fragmented message: {TotalLength} bytes from {FragmentCount} fragments", totalLength, fragments.Count);
+        logger?.LogDebug("Assembled fragmented message: {TotalLength} bytes", assembledMessage.Length);
         return assembledMessage;
     }
 
