@@ -27,6 +27,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
                     Scheme = "wss",
                     Port = uri.IsDefaultPort ? -1 : uri.Port,
                 };
+                uri = ub.Uri;
             }
 
             try
