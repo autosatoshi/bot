@@ -56,7 +56,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_WithNullTradeManager_ShouldNotThrow()
+    public void Constructor_WithNullPriceQueue_ShouldNotThrow()
     {
         // Arrange & Act
         var service = new LnMarketsBackgroundService(null!, _mockOptions.Object, _mockLogger.Object);
