@@ -152,7 +152,7 @@ public class TradeManager : ITradeManager
             var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
             var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePrice);
 
-            if (currentTrade != null || runningTrades.Count() > options.MaxRunningTrades)
+            if (currentTrade != null || runningTrades.Count() >= options.MaxRunningTrades)
             {
                 return;
             }
