@@ -51,18 +51,25 @@ public static class TradeFactory
         decimal marginInSats,
         string side)
     {
-        if (side == "buy")
-        {
-            var marginNormalized = marginInSats / (quantity * SatoshisPerBitcoin);
-            var inverseLiquidationPrice = (1 / entryPrice) + marginNormalized;
-            return 1 / inverseLiquidationPrice;
-        }
+        if (entryPrice <= 0)
+            throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than 0");
+        if (marginInSats < 0)
+            throw new ArgumentOutOfRangeException(nameof(marginInSats), "Margin must be greater than or equal to 0");
+
+        var marginNormalized = marginInSats / (quantity * SatoshisPerBitcoin);
+        decimal inverseLiquidationPrice;
+
+        if (string.Equals(side, "buy", StringComparison.OrdinalIgnoreCase))
+            inverseLiquidationPrice = (1 / entryPrice) + marginNormalized;
         else
-        {
-            var marginNormalized = marginInSats / (quantity * SatoshisPerBitcoin);
-            var inverseLiquidationPrice = (1 / entryPrice) - marginNormalized;
-            return 1 / inverseLiquidationPrice;
-        }
+            inverseLiquidationPrice = (1 / entryPrice) - marginNormalized;
+
+        if (inverseLiquidationPrice <= 0)
+            throw new ArgumentException($"Invalid calculation resulted in non-positive inverse liquidation price: {inverseLiquidationPrice}", nameof(marginInSats));
+
+        return 1 / inverseLiquidationPrice;
     }
 
     public static FuturesTradeModel CreateTrade(
