@@ -37,8 +37,6 @@ public class PriceQueue : IPriceQueue, IDisposable
                         continue;
                     }
 
-                    lastPrice = data.LastPrice;
-
                     // Skip old messages (timeout check)
                     var timestamp = data.Time?.TimeStampToDateTime() ?? DateTime.MinValue;
                     var timeDelta = DateTime.UtcNow - timestamp.ToUniversalTime();
@@ -56,6 +54,8 @@ public class PriceQueue : IPriceQueue, IDisposable
                     // Delegate to TradeManager for actual price handling
                     await _tradeManager.HandlePriceUpdateAsync(data);
 
+                    // Update lastPrice only after successful processing
+                    lastPrice = data.LastPrice;
                     lastIteration = DateTime.UtcNow;
                 }
                 catch (OperationCanceledException) when (_exitTokenSource.IsCancellationRequested)
