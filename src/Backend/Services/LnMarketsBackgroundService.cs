@@ -132,7 +132,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
             var subscription = JsonSerializer.Deserialize<JsonRpcSubscription>(messageAsString);
             if (subscription == null)
             {
-                _logger.LogWarning("Failed to deserialize json rpc subscription: {}", messageAsString);
+                _logger.LogWarning("Failed to deserialize json rpc subscription: {MessageContent}", messageAsString);
                 return;
             }
 
@@ -142,15 +142,15 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
                     var lastPriceData = JsonSerializer.Deserialize<LastPriceData>(subscription.Params.Data.GetRawText());
                     if (lastPriceData == null)
                     {
-                        _logger.LogWarning("Failed to deserialize data from json rpc subscription {}", subscription);
+                        _logger.LogWarning("Failed to deserialize data from json rpc subscription {Subscription}", subscription);
                         return;
                     }
 
-                    _logger.LogInformation("Last Price update: {}$", lastPriceData.LastPrice);
+                    _logger.LogInformation("Last Price update: {LastPrice}$", lastPriceData.LastPrice);
                     _priceQueue.UpdatePrice(lastPriceData);
                     return;
                 default:
-                    _logger.LogWarning("Received subscription data for unknown channel: {}", subscription.Params.Channel);
+                    _logger.LogWarning("Received subscription data for unknown channel: {Channel}", subscription.Params.Channel);
                     return;
             }
         }
