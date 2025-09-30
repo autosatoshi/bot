@@ -22,8 +22,11 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
             if (uri.Scheme != "wss")
             {
                 _logger.LogWarning("Modifying endpoint scheme from {Scheme} to 'wss'", uri.Scheme);
-                var ub = new UriBuilder(uri) { Scheme = "wss", Port = -1 }; // keep host/path/query; default port
-                uri = ub.Uri;
+                var ub = new UriBuilder(uri)
+                {
+                    Scheme = "wss",
+                    Port = uri.IsDefaultPort ? -1 : uri.Port,
+                };
             }
 
             try
