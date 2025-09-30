@@ -12,6 +12,13 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
 {
     private const string FuturesChannel = "futures:btc_usd:last-price";
 
+    private enum JsonRpcMessageType
+    {
+        Unknown,
+        Subscription,
+        Response,
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -127,7 +134,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
         {
             var messageAsString = Encoding.UTF8.GetString(messageBytes);
             var messageType = DetermineMessageType(messageAsString);
-            if (messageType != "JsonRpcSubscription")
+            if (messageType != JsonRpcMessageType.Subscription)
             {
                 return;
             }
@@ -212,18 +219,18 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
         return assembledMessage;
     }
 
-    private static string DetermineMessageType(string jsonMessage)
+    private static JsonRpcMessageType DetermineMessageType(string jsonMessage)
     {
         using var doc = JsonDocument.Parse(jsonMessage);
         if (doc.RootElement.TryGetProperty("result", out _))
         {
-            return "JsonRpcResponse";
+            return JsonRpcMessageType.Response;
         }
         else if (doc.RootElement.TryGetProperty("method", out _) && doc.RootElement.TryGetProperty("params", out _))
         {
-            return "JsonRpcSubscription";
+            return JsonRpcMessageType.Subscription;
         }
 
-        return "Unknown";
+        return JsonRpcMessageType.Unknown;
     }
 }
