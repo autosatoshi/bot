@@ -51,7 +51,38 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
                                 await client.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, stoppingToken);
                                 break;
                             case WebSocketMessageType.Text:
-                                HandleWsTextMessage(buffer, result);
+                                byte[]? message = null;
+                                if (result.EndOfMessage)
+                                {
+                                    message = new byte[result.Count];
+                                    Array.Copy(buffer, 0, message, 0, result.Count);
+                                }
+                                else
+                                {
+                                    using var timeoutCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                                    timeoutCancellationSource.CancelAfter(TimeSpan.FromSeconds(5));
+
+                                    try
+                                    {
+                                        message = await AssembleFragmentedMessageAsync(client, buffer, result, timeoutCancellationSource.Token, _logger);
+                                    }
+                                    catch (OperationCanceledException) when (timeoutCancellationSource.Token.IsCancellationRequested)
+                                    {
+                                        if (client.State == WebSocketState.Open)
+                                        {
+                                            _logger.LogWarning("Fragmented message assembly timed out - closing connection to prevent state corruption");
+                                            await client.CloseAsync(WebSocketCloseStatus.InternalServerError, "Fragmentation timeout", stoppingToken);
+                                        }
+
+                                        break; // Exit message loop to trigger reconnection
+                                    }
+                                }
+
+                                if (message != null)
+                                {
+                                    HandleWsTextMessage(message);
+                                }
+
                                 break;
                             default:
                                 break;
@@ -81,9 +112,9 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
         }
     }
 
-    private void HandleWsTextMessage(byte[] buffer, WebSocketReceiveResult result)
+    private void HandleWsTextMessage(byte[] messageBytes)
     {
-        if (buffer == null || result.Count <= 0)
+        if (messageBytes == null || messageBytes.Length == 0)
         {
             _logger.LogWarning("Received empty or null web socket message");
             return;
@@ -91,7 +122,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
 
         try
         {
-            var messageAsString = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            var messageAsString = Encoding.UTF8.GetString(messageBytes);
             var messageType = DetermineMessageType(messageAsString);
             if (messageType != "JsonRpcSubscription")
             {
@@ -128,6 +159,42 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
             _logger.LogError(ex, "Error processing web socket text message");
             return;
         }
+    }
+
+    private static async Task<byte[]?> AssembleFragmentedMessageAsync(ClientWebSocket client, byte[] buffer, WebSocketReceiveResult firstResult, CancellationToken cancellationToken, ILogger? logger = null)
+    {
+        logger?.LogDebug("Receiving fragmented WebSocket message");
+
+        var fragments = new List<byte[]> { buffer[..firstResult.Count] };
+        var totalLength = firstResult.Count;
+
+        WebSocketReceiveResult result;
+        do
+        {
+            result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+            if (result.MessageType != WebSocketMessageType.Text)
+            {
+                logger?.LogWarning("Unexpected message type during fragmented message assembly: {MessageType}", result.MessageType);
+                return null;
+            }
+
+            fragments.Add(buffer[..result.Count]);
+            totalLength += result.Count;
+        }
+        while (!result.EndOfMessage);
+
+        // Combine all fragments
+        var assembledMessage = new byte[totalLength];
+        var offset = 0;
+        foreach (var fragment in fragments)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            fragment.CopyTo(assembledMessage, offset);
+            offset += fragment.Length;
+        }
+
+        logger?.LogDebug("Assembled fragmented message: {TotalLength} bytes from {FragmentCount} fragments", totalLength, fragments.Count);
+        return assembledMessage;
     }
 
     private static string DetermineMessageType(string jsonMessage)
