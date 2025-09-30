@@ -1,7 +1,6 @@
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
 using AutoBot.Services;
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 
