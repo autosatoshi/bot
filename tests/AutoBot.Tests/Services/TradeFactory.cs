@@ -28,6 +28,13 @@ public static class TradeFactory
 
     public static decimal CalculatePLFromActualPrice(decimal quantityInUsd, decimal entryPriceInUsd, decimal currentPriceInUsd)
     {
+        if (quantityInUsd <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantityInUsd), "Quantity must be greater than 0");
+        if (entryPriceInUsd <= 0)
+            throw new ArgumentOutOfRangeException(nameof(entryPriceInUsd), "Entry price must be greater than 0");
+        if (currentPriceInUsd <= 0)
+            throw new ArgumentOutOfRangeException(nameof(currentPriceInUsd), "Current price must be greater than 0");
+
         return quantityInUsd * (1 / entryPriceInUsd - 1 / currentPriceInUsd) * SatoshisPerBitcoin;
     }
 
