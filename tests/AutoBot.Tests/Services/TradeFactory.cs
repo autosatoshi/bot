@@ -40,8 +40,19 @@ public static class TradeFactory
 
     public static decimal CalculateActualPriceFromPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal plInSats)
     {
+        if (quantityInUsd <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantityInUsd), "Quantity must be greater than 0");
+        if (entryPriceInUsd <= 0)
+            throw new ArgumentOutOfRangeException(nameof(entryPriceInUsd), "Entry price must be greater than 0");
+        if (quantityInUsd * SatoshisPerBitcoin == 0)
+            throw new ArgumentException("Quantity multiplied by SatoshisPerBitcoin cannot be zero", nameof(quantityInUsd));
+
         var plNormalized = plInSats / (quantityInUsd * SatoshisPerBitcoin);
         var inverseCurrentPrice = (1 / entryPriceInUsd) - plNormalized;
+        
+        if (inverseCurrentPrice <= 0)
+            throw new ArgumentException($"Invalid calculation resulted in non-positive inverse current price: {inverseCurrentPrice}");
+        
         return 1 / inverseCurrentPrice;
     }
 
