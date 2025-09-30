@@ -166,11 +166,18 @@ public static class TradeFactory
         string? id = null,
         string uid = "test-uid")
     {
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than 0");
+        if (entryPrice <= 0)
+            throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
+        if (leverage <= 0)
+            throw new ArgumentOutOfRangeException(nameof(leverage), "Leverage must be greater than 0");
         if (side != "buy" && side != "sell")
             throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
-        
         if (lossPercentage >= 0)
             throw new ArgumentException("Loss percentage must be negative", nameof(lossPercentage));
+        if (marginInSats.HasValue && marginInSats.Value < 0)
+            throw new ArgumentOutOfRangeException(nameof(marginInSats), "Margin must be greater than or equal to 0");
 
         // Calculate margin if not provided
         decimal calculatedMarginInSats;
@@ -183,6 +190,9 @@ public static class TradeFactory
             var marginInUsd = quantity / leverage;
             calculatedMarginInSats = marginInUsd * (SatoshisPerBitcoin / entryPrice);
         }
+
+        if (calculatedMarginInSats < 0)
+            throw new ArgumentException($"Calculated margin resulted in negative value: {calculatedMarginInSats}", nameof(leverage));
 
         var pl = (lossPercentage / 100m) * calculatedMarginInSats;
 
