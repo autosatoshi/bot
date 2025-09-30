@@ -84,7 +84,7 @@ public class ProcessMarginManagementTests
             entryPrice: 49000m,
             leverage: 1m,
             side: "buy",
-            lossPercentage: -60m, // -60% loss (within -50% limit)
+            lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
             TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
@@ -214,7 +214,7 @@ public class ProcessMarginManagementTests
             entryPrice: 49000m,
             leverage: 1m,
             side: "buy",
-            lossPercentage: -60m, // -60% loss (within -50% limit)
+            lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
             TradeState.Running,
             marginInSats: 1000m,
             id: "trade-1");
