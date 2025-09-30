@@ -157,8 +157,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            const int SatoshisPerBitcoin = 100_000_000;
-            var oneUsdInSats = SatoshisPerBitcoin / messageData.LastPrice;
+            var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
             var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
             var freeMargin = CalculateFreeMargin(user, openTrades, runningTrades);
 
