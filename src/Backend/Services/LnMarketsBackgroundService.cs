@@ -140,6 +140,18 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor
                 return;
             }
 
+            if (subscription.Params == null)
+            {
+                _logger.LogWarning("Subscription missing params: {Message}", messageAsString);
+                return;
+            }
+
+            if (subscription.Params.Data.ValueKind == JsonValueKind.Undefined || subscription.Params.Data.ValueKind == JsonValueKind.Null)
+            {
+                _logger.LogWarning("Subscription params missing data for channel {Channel}", subscription.Params.Channel);
+                return;
+            }
+
             switch (subscription.Params.Channel)
             {
                 case FuturesChannel:
