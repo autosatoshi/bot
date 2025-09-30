@@ -10,7 +10,7 @@ namespace AutoBot.Tests.Services;
 public sealed class LnMarketsBackgroundServiceTests : IDisposable
 {
     private readonly Mock<IPriceQueue> _mockPriceQueue;
-    private readonly Mock<IOptions<LnMarketsOptions>> _mockOptions;
+    private readonly Mock<IOptionsMonitor<LnMarketsOptions>> _mockOptions;
     private readonly Mock<ILogger<LnMarketsBackgroundService>> _mockLogger;
     private readonly LnMarketsOptions _options;
     private readonly LnMarketsBackgroundService _service;
@@ -18,7 +18,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
     public LnMarketsBackgroundServiceTests()
     {
         _mockPriceQueue = new Mock<IPriceQueue>();
-        _mockOptions = new Mock<IOptions<LnMarketsOptions>>();
+        _mockOptions = new Mock<IOptionsMonitor<LnMarketsOptions>>();
         _mockLogger = new Mock<ILogger<LnMarketsBackgroundService>>();
 
         _options = new LnMarketsOptions
@@ -41,7 +41,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
             Pause = false
         };
 
-        _mockOptions.Setup(o => o.Value).Returns(_options);
+        _mockOptions.Setup(o => o.CurrentValue).Returns(_options);
         _service = new LnMarketsBackgroundService(_mockPriceQueue.Object, _mockOptions.Object, _mockLogger.Object);
     }
 

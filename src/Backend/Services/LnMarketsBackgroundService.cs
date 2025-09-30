@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
-public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMarketsOptions> _options, ILogger<LnMarketsBackgroundService> _logger) : BackgroundService
+public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor<LnMarketsOptions> _options, ILogger<LnMarketsBackgroundService> _logger) : BackgroundService
 {
     private const string FuturesChannel = "futures:btc_usd:last-price";
 
@@ -18,7 +18,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
         {
             using var client = new ClientWebSocket();
 
-            var uri = new Uri(_options.Value.Endpoint);
+            var uri = new Uri(_options.CurrentValue.Endpoint);
             if (uri.Scheme != "wss")
             {
                 _logger.LogWarning("Modifying endpoint scheme from {Scheme} to 'wss'", uri.Scheme);
@@ -39,7 +39,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
 
                 await client.SendAsync(segment, WebSocketMessageType.Text, true, stoppingToken);
 
-                var buffer = ArrayPool<byte>.Shared.Rent(_options.Value.WebSocketBufferSize);
+                var buffer = ArrayPool<byte>.Shared.Rent(_options.CurrentValue.WebSocketBufferSize);
                 try
                 {
                     while (client.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
@@ -59,14 +59,18 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
                                 }
                                 else
                                 {
-                                    using var timeoutCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                                    timeoutCancellationSource.CancelAfter(TimeSpan.FromSeconds(5));
-
+                                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.CurrentValue.MessageTimeoutSeconds));
+                                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
                                     try
                                     {
-                                        message = await AssembleFragmentedMessageAsync(client, buffer, result, timeoutCancellationSource.Token, _logger);
+                                        message = await AssembleFragmentedMessageAsync(client, buffer, result, linkedCts.Token, _logger);
                                     }
-                                    catch (OperationCanceledException) when (timeoutCancellationSource.Token.IsCancellationRequested)
+                                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                                    {
+                                        // Let outer cancellation path handle graceful shutdown
+                                        throw;
+                                    }
+                                    catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
                                     {
                                         if (client.State == WebSocketState.Open)
                                         {
@@ -96,7 +100,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
             }
             catch (WebSocketException wsEx)
             {
-                _logger.LogWarning(wsEx, "WebSocket connection failed, retrying in {DelaySeconds}s", _options.Value.ReconnectDelaySeconds);
+                _logger.LogWarning(wsEx, "WebSocket connection failed, retrying in {DelaySeconds}s", _options.CurrentValue.ReconnectDelaySeconds);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -108,7 +112,7 @@ public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptions<LnMark
                 _logger.LogError(ex, "Unexpected error in background service");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(_options.Value.ReconnectDelaySeconds), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(_options.CurrentValue.ReconnectDelaySeconds), stoppingToken);
         }
     }
 
