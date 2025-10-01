@@ -171,9 +171,13 @@ public class TradeManager : ITradeManager
             var feeAdjustedTakeprofit = tradePrice + options.Takeprofit;
             if (options.UseBreakevenCalculation)
             {
-                var userFeeRate = GetFeeRateFromTier(user.fee_tier);
-                logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, userFeeRate);
-                feeAdjustedTakeprofit = CalculateFeeAdjustedTakeprofit(tradePrice, options.Takeprofit, options.Quantity, options.Leverage, userFeeRate, logger);
+                var feeRate = GetFeeRateFromTier(user.fee_tier);
+                logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, feeRate);
+
+                // feeAdjustedTakeprofit = CalculateFeeAdjustedTakeprofit(tradePrice, options.Takeprofit, options.Quantity, options.Leverage, userFeeRate, logger);
+                var exitPrice = TradeFactory.CalculateMinimumProfitableExitPrice(options.Quantity, tradePrice, options.Leverage, feeRate, 100, "buy");
+                logger?.LogInformation("Adjusted exit price from {ExitPrice}$ to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", feeAdjustedTakeprofit, exitPrice, 100);
+                feeAdjustedTakeprofit = exitPrice;
             }
 
             if (openTrade is null && feeAdjustedTakeprofit < options.MaxTakeprofitPrice)
