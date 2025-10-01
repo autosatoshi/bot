@@ -1,86 +1,165 @@
 using AutoBot.Models.LnMarkets;
 
-namespace AutoBot.Tests.Services;
-
-public enum TradeState
-{
-    Running,  // open = false, running = true
-    Open,     // open = true, running = false
-    Closed,   // open = false, running = false, closed = true
-    Canceled  // open = false, running = false, canceled = true
-}
+namespace AutoBot.Services;
 
 public static class TradeFactory
 {
     private const decimal SatoshisPerBitcoin = 100_000_000m;
 
-    private static (bool open, bool running, bool canceled, bool closed) GetTradeStateFlags(TradeState state)
-    {
-        return state switch
-        {
-            TradeState.Running => (false, true, false, false),
-            TradeState.Open => (true, false, false, false),
-            TradeState.Closed => (false, false, false, true),
-            TradeState.Canceled => (false, false, true, false),
-            _ => throw new ArgumentException("Invalid trade state", nameof(state))
-        };
-    }
-
     public static decimal CalculatePLFromActualPrice(decimal quantityInUsd, decimal entryPriceInUsd, decimal currentPriceInUsd)
     {
         if (quantityInUsd <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(quantityInUsd), "Quantity must be greater than 0");
-        if (entryPriceInUsd <= 0)
-            throw new ArgumentOutOfRangeException(nameof(entryPriceInUsd), "Entry price must be greater than 0");
-        if (currentPriceInUsd <= 0)
-            throw new ArgumentOutOfRangeException(nameof(currentPriceInUsd), "Current price must be greater than 0");
+        }
 
-        return quantityInUsd * (1 / entryPriceInUsd - 1 / currentPriceInUsd) * SatoshisPerBitcoin;
+        if (entryPriceInUsd <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(entryPriceInUsd), "Entry price must be greater than 0");
+        }
+
+        if (currentPriceInUsd <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(currentPriceInUsd), "Current price must be greater than 0");
+        }
+
+        return quantityInUsd * ((1 / entryPriceInUsd) - (1 / currentPriceInUsd)) * SatoshisPerBitcoin;
     }
 
     public static decimal CalculateActualPriceFromPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal plInSats)
     {
         if (quantityInUsd <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(quantityInUsd), "Quantity must be greater than 0");
+        }
+
         if (entryPriceInUsd <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(entryPriceInUsd), "Entry price must be greater than 0");
+        }
+
         if (quantityInUsd * SatoshisPerBitcoin == 0)
+        {
             throw new ArgumentException("Quantity multiplied by SatoshisPerBitcoin cannot be zero", nameof(quantityInUsd));
+        }
 
         var plNormalized = plInSats / (quantityInUsd * SatoshisPerBitcoin);
         var inverseCurrentPrice = (1 / entryPriceInUsd) - plNormalized;
-        
+
         if (inverseCurrentPrice <= 0)
+        {
             throw new ArgumentException($"Invalid calculation resulted in non-positive inverse current price: {inverseCurrentPrice}");
-        
+        }
+
         return 1 / inverseCurrentPrice;
     }
 
-    private static decimal CalculateLiquidationPrice(
-        decimal entryPrice,
-        decimal quantity,
-        decimal marginInSats,
-        string side)
+    public static decimal CalculateBreakevenExitPrice(decimal quantity, decimal entryPrice, decimal leverage, decimal feeRate, string side = "buy")
     {
-        if (entryPrice <= 0)
-            throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
-        if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than 0");
-        if (marginInSats < 0)
-            throw new ArgumentOutOfRangeException(nameof(marginInSats), "Margin must be greater than or equal to 0");
+        if (quantity <= 0 || entryPrice <= 0 || leverage <= 0 || feeRate < 0)
+        {
+            throw new ArgumentOutOfRangeException("All parameters must be positive");
+        }
 
-        var marginNormalized = marginInSats / (quantity * SatoshisPerBitcoin);
-        decimal inverseLiquidationPrice;
+        if (side != "buy" && side != "sell")
+        {
+            throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
+        }
 
-        if (string.Equals(side, "buy", StringComparison.OrdinalIgnoreCase))
-            inverseLiquidationPrice = (1 / entryPrice) + marginNormalized;
-        else
-            inverseLiquidationPrice = (1 / entryPrice) - marginNormalized;
+        var openingFee = CalculateOpeningFee(quantity, entryPrice, feeRate);
 
-        if (inverseLiquidationPrice <= 0)
-            throw new ArgumentException($"Invalid calculation resulted in non-positive inverse liquidation price: {inverseLiquidationPrice}", nameof(marginInSats));
+        var minPrice = side == "buy" ? entryPrice : entryPrice * 0.5m;
+        var maxPrice = side == "buy" ? entryPrice * 2m : entryPrice;
 
-        return 1 / inverseLiquidationPrice;
+        const decimal tolerance = 0.01m;
+        const int maxIterations = 100;
+
+        for (int i = 0; i < maxIterations; i++)
+        {
+            var testPrice = (minPrice + maxPrice) / 2m;
+            var trade = CreateTrade(quantity, entryPrice, leverage, side, testPrice, TradeState.Closed, feeRate: feeRate);
+            var netPL = trade.pl - trade.opening_fee - trade.closing_fee;
+
+            if (Math.Abs(netPL) < tolerance)
+            {
+                return testPrice;
+            }
+
+            if (side == "buy")
+            {
+                if (netPL < 0)
+                {
+                    minPrice = testPrice;
+                }
+                else
+                {
+                    maxPrice = testPrice;
+                }
+            }
+            else
+            {
+                if (netPL < 0)
+                {
+                    maxPrice = testPrice;
+                }
+                else
+                {
+                    minPrice = testPrice;
+                }
+            }
+        }
+
+        return (minPrice + maxPrice) / 2m;
+    }
+
+    public static decimal CalculateMinimumProfitableExitPrice(decimal quantity, decimal entryPrice, decimal leverage, decimal feeRate, decimal safetyMarginSats = 100m, string side = "buy")
+    {
+        var breakevenPrice = CalculateBreakevenExitPrice(quantity, entryPrice, leverage, feeRate, side);
+
+        var targetNetPL = safetyMarginSats;
+
+        var minPrice = side == "buy" ? breakevenPrice : entryPrice * 0.5m;
+        var maxPrice = side == "buy" ? entryPrice * 2m : breakevenPrice;
+
+        const decimal tolerance = 0.01m;
+        const int maxIterations = 100;
+
+        for (int i = 0; i < maxIterations; i++)
+        {
+            var testPrice = (minPrice + maxPrice) / 2m;
+            var trade = CreateTrade(quantity, entryPrice, leverage, side, testPrice, TradeState.Closed, feeRate: feeRate);
+            var netPL = trade.pl - trade.opening_fee - trade.closing_fee;
+
+            if (Math.Abs(netPL - targetNetPL) < tolerance)
+            {
+                return testPrice;
+            }
+
+            if (side == "buy")
+            {
+                if (netPL < targetNetPL)
+                {
+                    minPrice = testPrice;
+                }
+                else
+                {
+                    maxPrice = testPrice;
+                }
+            }
+            else
+            {
+                if (netPL < targetNetPL)
+                {
+                    maxPrice = testPrice;
+                }
+                else
+                {
+                    minPrice = testPrice;
+                }
+            }
+        }
+
+        return (minPrice + maxPrice) / 2m;
     }
 
     public static FuturesTradeModel CreateTrade(
@@ -91,18 +170,33 @@ public static class TradeFactory
         decimal currentPrice,
         TradeState state,
         string? id = null,
-        string uid = "test-uid")
+        string uid = "default-uid",
+        decimal feeRate = 0.001m)
     {
         if (leverage <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(leverage), "Leverage must be greater than 0");
+        }
+
         if (quantity <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than 0");
+        }
+
         if (entryPrice <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
+        }
+
         if (currentPrice <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(currentPrice), "Current price must be greater than 0");
+        }
+
         if (side != "buy" && side != "sell")
+        {
             throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
+        }
 
         var marginInUsd = quantity / leverage;
         var marginInSats = marginInUsd * (SatoshisPerBitcoin / entryPrice);
@@ -119,19 +213,16 @@ public static class TradeFactory
             pl = -CalculatePLFromActualPrice(quantity, entryPrice, currentPrice);
         }
 
-        // Calculate fees
-        var feeRate = 0.001m; // Default to 0.1% (tier 1)
         var openingFee = CalculateOpeningFee(quantity, entryPrice, feeRate);
         var closingFee = CalculateClosingFee(quantity, currentPrice, feeRate);
 
         var liquidationPrice = CalculateLiquidationPrice(
-            entryPrice, 
-            quantity, 
-            Math.Floor(marginInSats), // Use floored margin like LN Markets
+            entryPrice,
+            quantity,
+            Math.Floor(marginInSats),
             side);
 
-        // Set trade state flags based on enum
-        var (open, running, canceled, closed) = GetTradeStateFlags(state);
+        var tradeFlags = GetTradeStateFlags(state);
 
         return new FuturesTradeModel
         {
@@ -147,16 +238,16 @@ public static class TradeFactory
             liquidation = RoundLiquidationPrice(liquidationPrice),
             stoploss = 0m,
             takeprofit = side == "buy" ? entryPrice * 1.1m : entryPrice * 0.9m,
-            creation_ts = 1640995200,
-            open = open,
-            running = running,
-            canceled = canceled,
-            closed = closed,
-            last_update_ts = 1640995200,
+            creation_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            open = tradeFlags.Open,
+            running = tradeFlags.Running,
+            canceled = tradeFlags.Canceled,
+            closed = tradeFlags.Closed,
+            last_update_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             opening_fee = openingFee,
             closing_fee = Math.Round(closingFee, 0),
             maintenance_margin = Math.Round(maintenanceMarginInSats, 0),
-            sum_carry_fees = 0m
+            sum_carry_fees = 0m,
         };
     }
 
@@ -169,22 +260,39 @@ public static class TradeFactory
         TradeState state,
         decimal? marginInSats = null,
         string? id = null,
-        string uid = "test-uid")
+        string uid = "default-uid",
+        decimal feeRate = 0.001m)
     {
         if (quantity <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than 0");
-        if (entryPrice <= 0)
-            throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
-        if (leverage <= 0)
-            throw new ArgumentOutOfRangeException(nameof(leverage), "Leverage must be greater than 0");
-        if (side != "buy" && side != "sell")
-            throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
-        if (lossPercentage >= 0)
-            throw new ArgumentException("Loss percentage must be negative", nameof(lossPercentage));
-        if (marginInSats.HasValue && marginInSats.Value < 0)
-            throw new ArgumentOutOfRangeException(nameof(marginInSats), "Margin must be greater than or equal to 0");
+        }
 
-        // Calculate margin if not provided
+        if (entryPrice <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
+        }
+
+        if (leverage <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(leverage), "Leverage must be greater than 0");
+        }
+
+        if (side != "buy" && side != "sell")
+        {
+            throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
+        }
+
+        if (lossPercentage >= 0)
+        {
+            throw new ArgumentException("Loss percentage must be negative", nameof(lossPercentage));
+        }
+
+        if (marginInSats.HasValue && marginInSats.Value < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(marginInSats), "Margin must be greater than or equal to 0");
+        }
+
         decimal calculatedMarginInSats;
         if (marginInSats.HasValue)
         {
@@ -197,25 +305,24 @@ public static class TradeFactory
         }
 
         if (calculatedMarginInSats < 0)
+        {
             throw new ArgumentException($"Calculated margin resulted in negative value: {calculatedMarginInSats}", nameof(leverage));
+        }
 
         var pl = (lossPercentage / 100m) * calculatedMarginInSats;
 
         var maintenanceMarginInSats = calculatedMarginInSats * 0.05m;
 
-        // Calculate fees
-        var feeRate = 0.001m; // Default to 0.1% (tier 1)
         var openingFee = CalculateOpeningFee(quantity, entryPrice, feeRate);
-        var closingFee = CalculateClosingFee(quantity, entryPrice, feeRate); // Use entry price for losing trade
+        var closingFee = CalculateClosingFee(quantity, entryPrice, feeRate);
 
         var liquidationPrice = CalculateLiquidationPrice(
-            entryPrice, 
-            quantity, 
-            calculatedMarginInSats, 
+            entryPrice,
+            quantity,
+            calculatedMarginInSats,
             side);
 
-        // Set trade state flags based on enum
-        var (open, running, canceled, closed) = GetTradeStateFlags(state);
+        var tradeFlags = GetTradeStateFlags(state);
 
         return new FuturesTradeModel
         {
@@ -231,17 +338,58 @@ public static class TradeFactory
             liquidation = RoundLiquidationPrice(liquidationPrice),
             stoploss = 0m,
             takeprofit = side == "buy" ? entryPrice * 1.1m : entryPrice * 0.9m,
-            creation_ts = 1640995200,
-            open = open,
-            running = running,
-            canceled = canceled,
-            closed = closed,
-            last_update_ts = 1640995200,
+            creation_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            open = tradeFlags.Open,
+            running = tradeFlags.Running,
+            canceled = tradeFlags.Canceled,
+            closed = tradeFlags.Closed,
+            last_update_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             opening_fee = openingFee,
             closing_fee = Math.Round(closingFee, 0),
             maintenance_margin = Math.Round(maintenanceMarginInSats, 0),
-            sum_carry_fees = 0m
+            sum_carry_fees = 0m,
         };
+    }
+
+    private static decimal CalculateLiquidationPrice(
+        decimal entryPrice,
+        decimal quantity,
+        decimal marginInSats,
+        string side)
+    {
+        if (entryPrice <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be greater than 0");
+        }
+
+        if (quantity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than 0");
+        }
+
+        if (marginInSats < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(marginInSats), "Margin must be greater than or equal to 0");
+        }
+
+        var marginNormalized = marginInSats / (quantity * SatoshisPerBitcoin);
+        decimal inverseLiquidationPrice;
+
+        if (string.Equals(side, "buy", StringComparison.OrdinalIgnoreCase))
+        {
+            inverseLiquidationPrice = (1 / entryPrice) + marginNormalized;
+        }
+        else
+        {
+            inverseLiquidationPrice = (1 / entryPrice) - marginNormalized;
+        }
+
+        if (inverseLiquidationPrice <= 0)
+        {
+            throw new ArgumentException($"Invalid calculation resulted in non-positive inverse liquidation price: {inverseLiquidationPrice}", nameof(marginInSats));
+        }
+
+        return 1 / inverseLiquidationPrice;
     }
 
     private static decimal CalculateOpeningFee(decimal quantity, decimal entryPrice, decimal feeRate)
@@ -256,13 +404,23 @@ public static class TradeFactory
 
     private static decimal RoundLiquidationPrice(decimal liquidationPrice)
     {
-        // LN Markets rounds liquidation prices to the nearest 0.5
         return Math.Round(liquidationPrice * 2m, 0) / 2m;
     }
 
     private static decimal RoundPL(decimal pl)
     {
-        // LN Markets uses Math.Floor (truncation) for all P&L calculations
         return Math.Floor(pl);
+    }
+
+    private static (bool Open, bool Running, bool Canceled, bool Closed) GetTradeStateFlags(TradeState state)
+    {
+        return state switch
+        {
+            TradeState.Running => (false, true, false, false),
+            TradeState.Open => (true, false, false, false),
+            TradeState.Closed => (false, false, false, true),
+            TradeState.Canceled => (false, false, true, false),
+            _ => throw new ArgumentOutOfRangeException(nameof(state), state, null),
+        };
     }
 }

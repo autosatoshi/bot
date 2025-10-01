@@ -56,4 +56,6 @@ public class LnMarketsOptions
 
     [Range(1, int.MaxValue)]
     public int MinCallIntervalSeconds { get; set; } = 10;
+
+    public bool UseBreakevenCalculation { get; set; } = false;
 }
