@@ -177,7 +177,7 @@ public class TradeManager : ITradeManager
                 // feeAdjustedTakeprofit = CalculateFeeAdjustedTakeprofit(tradePrice, options.Takeprofit, options.Quantity, options.Leverage, userFeeRate, logger);
                 var exitPrice = TradeFactory.CalculateMinimumProfitableExitPrice(options.Quantity, tradePrice, options.Leverage, feeRate, 100, "buy");
                 logger?.LogInformation("Adjusted exit price from {ExitPrice}$ to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", feeAdjustedTakeprofit, exitPrice, 100);
-                feeAdjustedTakeprofit = exitPrice;
+                feeAdjustedTakeprofit = Math.Ceiling(exitPrice / options.Factor) * options.Factor;
             }
 
             if (openTrade is null && feeAdjustedTakeprofit < options.MaxTakeprofitPrice)

@@ -41,7 +41,7 @@ public class LnMarketsApiService : ILnMarketsApiService
     {
         var method = "POST";
         var path = "/v2/futures";
-        var requestBody = $$"""{"side":"b","type":"l","price":{{FormatPriceForApi(price)}},"takeprofit":{{FormatPriceForApi(price)}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
+        var requestBody = $$"""{"side":"b","type":"l","price":{{price.ToString(CultureInfo.InvariantCulture)}},"takeprofit":{{takeprofit.ToString(CultureInfo.InvariantCulture)}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
 
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateLimitBuyOrder", new object[] { price, takeprofit, leverage, quantity });
     }
@@ -95,16 +95,6 @@ public class LnMarketsApiService : ILnMarketsApiService
             _logger.LogError(ex, "Exception occurred while retrieving user data");
             throw;
         }
-    }
-
-    private static string FormatPriceForApi(decimal price)
-    {
-        // Round to 2 decimal places for precision, but format as clean number
-        var rounded = Math.Round(price, 2, MidpointRounding.AwayFromZero);
-
-        // Use invariant culture and remove trailing zeros
-        var formatted = rounded.ToString("0.##", CultureInfo.InvariantCulture);
-        return formatted;
     }
 
     private void SetLnMarketsHeaders(string key, string passphrase, string signature, long timestamp)
