@@ -416,6 +416,8 @@ public class ProcessTradeExecutionTests
     [InlineData(500, 114347, 100000, 80, "buy", 5465, 112935.5, 437, 500, -62735)]
     [InlineData(672, 97653, 99342, 74, "buy", 9299, 96351, 688, 676, 11699)]
     [InlineData(10, 67213, 74521, 75, "buy", 198, 66330.5, 14, 13, 1459)]
+    [InlineData(4357, 87321.5, 101462.5, 2, "buy", 2494803, 58214.5, 4989, 4294, 695410)]
+    [InlineData(10000, 103643.5, 98340.5, 9.43, "buy", 1023166, 93706.5, 9648, 10168, -520292)]
     public void TradeFactory_WithRealWorldLnMarketsValues_ShouldPopulateCorrectFuturesTradeModel(
         decimal quantity,
         decimal entryPrice,
