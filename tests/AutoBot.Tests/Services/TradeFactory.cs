@@ -127,7 +127,7 @@ public static class TradeFactory
         var liquidationPrice = CalculateLiquidationPrice(
             entryPrice, 
             quantity, 
-            marginInSats, 
+            Math.Floor(marginInSats), // Use floored margin like LN Markets
             side);
 
         // Set trade state flags based on enum
@@ -153,7 +153,7 @@ public static class TradeFactory
             canceled = canceled,
             closed = closed,
             last_update_ts = 1640995200,
-            opening_fee = Math.Round(openingFee, 0),
+            opening_fee = openingFee,
             closing_fee = Math.Round(closingFee, 0),
             maintenance_margin = Math.Round(maintenanceMarginInSats, 0),
             sum_carry_fees = 0m
@@ -237,7 +237,7 @@ public static class TradeFactory
             canceled = canceled,
             closed = closed,
             last_update_ts = 1640995200,
-            opening_fee = Math.Round(openingFee, 0),
+            opening_fee = openingFee,
             closing_fee = Math.Round(closingFee, 0),
             maintenance_margin = Math.Round(maintenanceMarginInSats, 0),
             sum_carry_fees = 0m
@@ -256,25 +256,13 @@ public static class TradeFactory
 
     private static decimal RoundLiquidationPrice(decimal liquidationPrice)
     {
-        // LN Markets appears to use ceiling for values close to .3 and floor for values close to .8
-        var fractionalPart = liquidationPrice - Math.Floor(liquidationPrice);
-        
-        if (fractionalPart > 0.25m && fractionalPart < 0.35m)
-        {
-            return Math.Ceiling(liquidationPrice); // Round up for .3x range
-        }
-        
-        return Math.Round(liquidationPrice, 0); // Standard rounding for other cases
+        // LN Markets rounds liquidation prices to the nearest 0.5
+        return Math.Round(liquidationPrice * 2m, 0) / 2m;
     }
 
     private static decimal RoundPL(decimal pl)
     {
-        // LN Markets appears to use floor for negative P&L (losses) to be more conservative
-        if (pl < 0)
-        {
-            return Math.Floor(pl);
-        }
-        
-        return Math.Round(pl, 0); // Standard rounding for positive P&L
+        // LN Markets uses Math.Floor (truncation) for all P&L calculations
+        return Math.Floor(pl);
     }
 }
