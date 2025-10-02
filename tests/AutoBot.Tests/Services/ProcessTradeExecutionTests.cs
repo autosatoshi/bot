@@ -102,11 +102,11 @@ public class ProcessTradeExecutionTests
     {
         // Arrange
         var openTrade = TradeFactory.CreateTrade(
-            quantity: 1m,
-            entryPrice: 50000m, // Same as calculated tradePrice
+            quantityInUsd: 1m,
+            entryPriceInUsd: 50000m, // Same as calculated tradePrice
             leverage: 2m,
             side: TradeSide.Buy,
-            currentPrice: 50000m, // No P&L
+            currentPriceInUsd: 50000m, // No P&L
             TradeState.Open,
             id: "open-trade");
 
@@ -131,11 +131,11 @@ public class ProcessTradeExecutionTests
         // Arrange
         // LastPrice = 50000, Factor = 1000 → tradePrice = 50000
         var existingTrade = TradeFactory.CreateTrade(
-            quantity: 1m,
-            entryPrice: 50000m, // Same as calculated tradePrice
+            quantityInUsd: 1m,
+            entryPriceInUsd: 50000m, // Same as calculated tradePrice
             leverage: 2m,
             side: TradeSide.Buy,
-            currentPrice: 50000m, // No P&L
+            currentPriceInUsd: 50000m, // No P&L
             TradeState.Running,
             id: "existing-trade");
 
@@ -159,11 +159,11 @@ public class ProcessTradeExecutionTests
         {
             var entryPrice = 49000m + i * 100; // Different prices to avoid duplicate match
             runningTrades.Add(TradeFactory.CreateTrade(
-                quantity: 1m,
-                entryPrice: entryPrice,
+                quantityInUsd: 1m,
+                entryPriceInUsd: entryPrice,
                 leverage: 2m,
                 side: TradeSide.Buy,
-                currentPrice: entryPrice, // No P&L
+                currentPriceInUsd: entryPrice, // No P&L
                 TradeState.Running,
                 id: $"trade-{i}"));
         }
@@ -269,11 +269,11 @@ public class ProcessTradeExecutionTests
     {
         // Arrange
         var oldOpenTrade = TradeFactory.CreateTrade(
-            quantity: 1m,
-            entryPrice: 48000m, // Different from tradePrice (50000)
+            quantityInUsd: 1m,
+            entryPriceInUsd: 48000m, // Different from tradePrice (50000)
             leverage: 2m,
             side: TradeSide.Buy,
-            currentPrice: 48000m, // No P&L
+            currentPriceInUsd: 48000m, // No P&L
             TradeState.Open,
             id: "old-trade");
 
@@ -310,11 +310,11 @@ public class ProcessTradeExecutionTests
     {
         // Arrange
         var oldOpenTrade = TradeFactory.CreateTrade(
-            quantity: 1m,
-            entryPrice: 48000m,
+            quantityInUsd: 1m,
+            entryPriceInUsd: 48000m,
             leverage: 2m,
             side: TradeSide.Buy,
-            currentPrice: 48000m, // No P&L
+            currentPriceInUsd: 48000m, // No P&L
             TradeState.Open,
             id: "failing-trade");
 
@@ -390,11 +390,11 @@ public class ProcessTradeExecutionTests
         };
 
         var runningTradeAtExpectedPrice = TradeFactory.CreateTrade(
-            quantity: 1m,
-            entryPrice: expectedTradePrice, // This should match the calculated tradePrice
+            quantityInUsd: 1m,
+            entryPriceInUsd: expectedTradePrice, // This should match the calculated tradePrice
             leverage: 2m,
             side: TradeSide.Buy,
-            currentPrice: expectedTradePrice, // No P&L
+            currentPriceInUsd: expectedTradePrice, // No P&L
             TradeState.Running,
             id: "test-trade");
 
@@ -432,11 +432,11 @@ public class ProcessTradeExecutionTests
     {
         // Act
         var trade = TradeFactory.CreateTrade(
-            quantity: quantity,
-            entryPrice: entryPrice,
+            quantityInUsd: quantity,
+            entryPriceInUsd: entryPrice,
             leverage: leverage,
             side: side,
-            currentPrice: exitPrice,
+            currentPriceInUsd: exitPrice,
             TradeState.Open);
 
         // Assert

@@ -80,8 +80,8 @@ public class ProcessMarginManagementTests
     {
         // Arrange
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantity: 1m,
-            entryPrice: 49000m,
+            quantityInUsd: 1m,
+            entryPriceInUsd: 49000m,
             leverage: 1m,
             side: TradeSide.Buy,
             lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
@@ -111,8 +111,8 @@ public class ProcessMarginManagementTests
     {
         // Arrange
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantity: 1m,
-            entryPrice: 49000m,
+            quantityInUsd: 1m,
+            entryPriceInUsd: 49000m,
             leverage: 1m,
             side: TradeSide.Buy,
             lossPercentage: -20m, // -20% loss (exceeds -50% limit: -20% > -50%)
@@ -140,8 +140,8 @@ public class ProcessMarginManagementTests
     {
         // Arrange
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantity: 1m,
-            entryPrice: 49000m,
+            quantityInUsd: 1m,
+            entryPriceInUsd: 49000m,
             leverage: 1m,
             side: TradeSide.Buy,
             lossPercentage: -10m,
@@ -170,8 +170,8 @@ public class ProcessMarginManagementTests
     {
         // Arrange
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantity: 1m,
-            entryPrice: 49000m,
+            quantityInUsd: 1m,
+            entryPriceInUsd: 49000m,
             leverage: 1m,
             side: TradeSide.Buy,
             lossPercentage: -10m,
@@ -210,8 +210,8 @@ public class ProcessMarginManagementTests
         };
 
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantity: 1m,
-            entryPrice: 49000m,
+            quantityInUsd: 1m,
+            entryPriceInUsd: 49000m,
             leverage: 1m,
             side: TradeSide.Buy,
             lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
@@ -241,29 +241,29 @@ public class ProcessMarginManagementTests
 
         // Arrange - Create trades using TradeFactory
         var trade1 = TradeFactory.CreateTrade(
-            quantity: 1000m,
-            entryPrice: 100000m,
+            quantityInUsd: 1000m,
+            entryPriceInUsd: 100000m,
             leverage: 80m,
             side: TradeSide.Buy,
-            currentPrice: currentPrice,
+            currentPriceInUsd: currentPrice,
             TradeState.Running,
             id: "trade-1");
         
         var trade2 = TradeFactory.CreateTrade(
-            quantity: 2000m,
-            entryPrice: 99750m,
+            quantityInUsd: 2000m,
+            entryPriceInUsd: 99750m,
             leverage: 95m,
             side: TradeSide.Buy,
-            currentPrice: currentPrice,
+            currentPriceInUsd: currentPrice,
             TradeState.Running,
             id: "trade-2");
 
         var trade3 = TradeFactory.CreateTrade(
-            quantity: 2000m,
-            entryPrice: 99500m,
+            quantityInUsd: 2000m,
+            entryPriceInUsd: 99500m,
             leverage: 95m,
             side: TradeSide.Buy,
-            currentPrice: currentPrice,
+            currentPriceInUsd: currentPrice,
             TradeState.Running,
             id: "trade-3");
 
@@ -298,8 +298,8 @@ public class ProcessMarginManagementTests
     {
         // Arrange
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantity: 1m,
-            entryPrice: 49000m,
+            quantityInUsd: 1m,
+            entryPriceInUsd: 49000m,
             leverage: 1m,
             side: TradeSide.Buy,
             lossPercentage: -20m,
@@ -326,11 +326,11 @@ public class ProcessMarginManagementTests
     {
         // Arrange - Create scenario where CalculateMarginToAdd returns 0
         var runningTrade = TradeFactory.CreateTrade(
-            quantity: 2m,
-            entryPrice: 50000m, // Same as current price in _defaultPriceData
+            quantityInUsd: 2m,
+            entryPriceInUsd: 50000m, // Same as current price in _defaultPriceData
             leverage: 1m,
             side: TradeSide.Buy,
-            currentPrice: 50000m, // Same as entry price - no P&L
+            currentPriceInUsd: 50000m, // Same as entry price - no P&L
             TradeState.Running,
             id: "trade-1");
         
