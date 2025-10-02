@@ -148,9 +148,9 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var tradePriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
+            var quantizedPriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
             var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
-            var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePriceInUsd);
+            var currentTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
 
             if (currentTrade != null || runningTrades.Count() >= options.MaxRunningTrades)
             {
@@ -166,10 +166,10 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var openTrade = openTrades.FirstOrDefault(x => x.price == tradePriceInUsd);
+            var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
             if (openTrade != null)
             {
-                logger?.LogInformation("Skipping trade execution for price {Price}$ because an open trade with the same price already exists.", tradePriceInUsd);
+                logger?.LogInformation("Skipping trade execution for price {Price}$ because an open trade with the same price already exists.", quantizedPriceInUsd);
                 return;
             }
 
@@ -177,14 +177,14 @@ public class TradeManager : ITradeManager
             {
                 if (!options.TargetNetPLInSats.HasValue)
                 {
-                    return tradePriceInUsd + options.Takeprofit;
+                    return quantizedPriceInUsd + options.Takeprofit;
                 }
 
                 var feeRate = GetFeeRateFromTier(user.fee_tier);
                 logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, feeRate);
 
                 var targetNetPLInSats = options.TargetNetPLInSats.Value;
-                var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, tradePriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
+                var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
                 logger?.LogInformation("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", adjustedExitPriceInUsd, targetNetPLInSats);
                 return Math.Round(adjustedExitPriceInUsd, 0, MidpointRounding.AwayFromZero);
             }))();
@@ -210,12 +210,12 @@ public class TradeManager : ITradeManager
                 options.Key,
                 options.Passphrase,
                 options.Secret,
-                tradePriceInUsd,
+                quantizedPriceInUsd,
                 exitPriceInUsd,
                 options.Leverage,
                 options.Quantity))
             {
-                logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}', leverage: '{}', quantity: '{}']", tradePriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
+                logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}', leverage: '{}', quantity: '{}']", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
             }
         }
         catch (Exception ex)
