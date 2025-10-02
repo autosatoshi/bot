@@ -173,16 +173,21 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var exitPriceInUsd = tradePriceInUsd + options.Takeprofit;
-            if (options.UseBreakevenCalculation)
+            var exitPriceInUsd = ((Func<decimal>)(() =>
             {
+                if (!options.TargetNetPLInSats.HasValue)
+                {
+                    return tradePriceInUsd + options.Takeprofit;
+                }
+
                 var feeRate = GetFeeRateFromTier(user.fee_tier);
                 logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, feeRate);
 
-                var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, tradePriceInUsd, options.Leverage, feeRate, 100, TradeSide.Buy);
-                logger?.LogInformation("Adjusted exit price from {ExitPrice}$ to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", exitPriceInUsd, adjustedExitPriceInUsd, 100);
-                exitPriceInUsd = Math.Round(adjustedExitPriceInUsd, 0, MidpointRounding.AwayFromZero);
-            }
+                var targetNetPLInSats = options.TargetNetPLInSats.Value;
+                var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, tradePriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
+                logger?.LogInformation("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", adjustedExitPriceInUsd, targetNetPLInSats);
+                return Math.Round(adjustedExitPriceInUsd, 0, MidpointRounding.AwayFromZero);
+            }))();
 
             if (exitPriceInUsd >= options.MaxTakeprofitPrice)
             {
