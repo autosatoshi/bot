@@ -54,7 +54,7 @@ public static class TradeFactory
         return 1 / inverseCurrentPrice;
     }
 
-    public static decimal CalculateBreakevenExitPrice(decimal quantity, decimal entryPrice, decimal leverage, decimal feeRate, string side = "buy")
+    public static decimal CalculateExitPriceForTargetNetPL(decimal quantity, decimal entryPrice, decimal leverage, decimal feeRate, decimal targetNetPLSats, string side)
     {
         if (quantity <= 0 || entryPrice <= 0 || leverage <= 0 || feeRate < 0)
         {
@@ -66,10 +66,8 @@ public static class TradeFactory
             throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
         }
 
-        var openingFee = CalculateOpeningFee(quantity, entryPrice, feeRate);
-
         var minPrice = side == "buy" ? entryPrice : entryPrice * 0.5m;
-        var maxPrice = side == "buy" ? entryPrice * 2m : entryPrice;
+        var maxPrice = side == "buy" ? entryPrice * 2m : entryPrice * 1.5m;
 
         const decimal tolerance = 0.01m;
         const int maxIterations = 100;
@@ -80,14 +78,14 @@ public static class TradeFactory
             var trade = CreateTrade(quantity, entryPrice, leverage, side, testPrice, TradeState.Closed, feeRate: feeRate);
             var netPL = trade.pl - trade.opening_fee - trade.closing_fee;
 
-            if (Math.Abs(netPL) < tolerance)
+            if (Math.Abs(netPL - targetNetPLSats) < tolerance)
             {
                 return testPrice;
             }
 
             if (side == "buy")
             {
-                if (netPL < 0)
+                if (netPL < targetNetPLSats)
                 {
                     minPrice = testPrice;
                 }
@@ -98,57 +96,7 @@ public static class TradeFactory
             }
             else
             {
-                if (netPL < 0)
-                {
-                    maxPrice = testPrice;
-                }
-                else
-                {
-                    minPrice = testPrice;
-                }
-            }
-        }
-
-        return (minPrice + maxPrice) / 2m;
-    }
-
-    public static decimal CalculateMinimumProfitableExitPrice(decimal quantity, decimal entryPrice, decimal leverage, decimal feeRate, decimal safetyMarginSats = 100m, string side = "buy")
-    {
-        var breakevenPrice = CalculateBreakevenExitPrice(quantity, entryPrice, leverage, feeRate, side);
-
-        var targetNetPL = safetyMarginSats;
-
-        var minPrice = side == "buy" ? breakevenPrice : entryPrice * 0.5m;
-        var maxPrice = side == "buy" ? entryPrice * 2m : breakevenPrice;
-
-        const decimal tolerance = 0.01m;
-        const int maxIterations = 100;
-
-        for (int i = 0; i < maxIterations; i++)
-        {
-            var testPrice = (minPrice + maxPrice) / 2m;
-            var trade = CreateTrade(quantity, entryPrice, leverage, side, testPrice, TradeState.Closed, feeRate: feeRate);
-            var netPL = trade.pl - trade.opening_fee - trade.closing_fee;
-
-            if (Math.Abs(netPL - targetNetPL) < tolerance)
-            {
-                return testPrice;
-            }
-
-            if (side == "buy")
-            {
-                if (netPL < targetNetPL)
-                {
-                    minPrice = testPrice;
-                }
-                else
-                {
-                    maxPrice = testPrice;
-                }
-            }
-            else
-            {
-                if (netPL < targetNetPL)
+                if (netPL < targetNetPLSats)
                 {
                     maxPrice = testPrice;
                 }

@@ -175,7 +175,7 @@ public class TradeManager : ITradeManager
                 logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, feeRate);
 
                 // feeAdjustedTakeprofit = CalculateFeeAdjustedTakeprofit(tradePrice, options.Takeprofit, options.Quantity, options.Leverage, userFeeRate, logger);
-                var exitPrice = TradeFactory.CalculateMinimumProfitableExitPrice(options.Quantity, tradePrice, options.Leverage, feeRate, 100, "buy");
+                var exitPrice = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, tradePrice, options.Leverage, feeRate, 100, "buy");
                 logger?.LogInformation("Adjusted exit price from {ExitPrice}$ to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", feeAdjustedTakeprofit, exitPrice, 100);
                 feeAdjustedTakeprofit = Math.Round(exitPrice, 0, MidpointRounding.AwayFromZero);
             }
@@ -248,11 +248,11 @@ public class TradeManager : ITradeManager
         var desiredTakeprofitPrice = entryPrice + desiredProfitUsd;
 
         // Use TradeFactory to calculate the exact breakeven price (net P&L = 0 after all fees)
-        var breakevenPrice = TradeFactory.CalculateBreakevenExitPrice(quantity, entryPrice, leverage, feeRate, "buy");
+        var breakevenPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, "buy");
 
         // Calculate minimum profitable price with desired profit margin
         var safetyMarginSats = desiredProfitUsd * (Constants.SatoshisPerBitcoin / entryPrice); // Convert desired profit to sats
-        var minProfitablePrice = TradeFactory.CalculateMinimumProfitableExitPrice(
+        var minProfitablePrice = TradeFactory.CalculateExitPriceForTargetNetPL(
             quantity, entryPrice, leverage, feeRate, safetyMarginSats, "buy");
 
         // Use the higher of the two: desired takeprofit or minimum profitable price
