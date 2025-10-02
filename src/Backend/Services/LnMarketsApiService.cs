@@ -12,7 +12,7 @@ public class LnMarketsApiService : ILnMarketsApiService
     private readonly HttpClient _httpClient;
     private readonly ILogger<LnMarketsApiService> _logger;
 
-    public LnMarketsApiService(IHttpClientFactory httpClientFactory, ILogger<LnMarketsApiService> logger, IOptions<LnMarketsOptions> options)
+    public LnMarketsApiService(IHttpClientFactory httpClientFactory, IOptions<LnMarketsOptions> options, ILogger<LnMarketsApiService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
         _httpClient.BaseAddress = new Uri(options.Value.Endpoint);
@@ -41,7 +41,7 @@ public class LnMarketsApiService : ILnMarketsApiService
     {
         var method = "POST";
         var path = "/v2/futures";
-        var requestBody = $$"""{"side":"b","type":"l","price":{{price}},"takeprofit":{{takeprofit}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
+        var requestBody = $$"""{"side":"b","type":"l","price":{{price.ToString(CultureInfo.InvariantCulture)}},"takeprofit":{{takeprofit.ToString(CultureInfo.InvariantCulture)}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
 
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "CreateLimitBuyOrder", new object[] { price, takeprofit, leverage, quantity });
     }
@@ -55,31 +55,22 @@ public class LnMarketsApiService : ILnMarketsApiService
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "SwapUsdInBtc", new object[] { "USD", "BTC", amount });
     }
 
-    public async Task<IEnumerable<FuturesTradeModel>> FuturesGetOpenTradesAsync(string key, string passphrase, string secret)
+    public async Task<IEnumerable<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret)
     {
         var method = "GET";
         var path = "/v2/futures";
         var queryParams = "type=open";
 
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetOpenTradesAsync", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
+        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetOpenTrades", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
     }
 
-    public async Task<IEnumerable<FuturesTradeModel>> FuturesGetRunningTradesAsync(string key, string passphrase, string secret)
+    public async Task<IEnumerable<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret)
     {
         var method = "GET";
         var path = "/v2/futures";
         var queryParams = "type=running";
 
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "FuturesGetRunningTradesAsync", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
-    }
-
-    public async Task<IEnumerable<DepositModel>> GetDeposits(string key, string passphrase, string secret)
-    {
-        var method = "GET";
-        var path = "/v2/user/deposit";
-        var queryParams = string.Empty;
-
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetDeposits", new List<DepositModel>()) ?? new List<DepositModel>();
+        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, "GetRunningTrades", new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
     }
 
     public async Task<UserModel> GetUser(string key, string passphrase, string secret)
@@ -104,15 +95,6 @@ public class LnMarketsApiService : ILnMarketsApiService
             _logger.LogError(ex, "Exception occurred while retrieving user data");
             throw;
         }
-    }
-
-    public async Task<string> GetWithdrawals(string key, string passphrase, string secret)
-    {
-        var method = "GET";
-        var path = "/v2/user/withdraw";
-        var queryParams = string.Empty;
-
-        return await ExecuteGetStringRequestAsync(key, passphrase, secret, method, path, queryParams, "GetWithdrawals");
     }
 
     private void SetLnMarketsHeaders(string key, string passphrase, string signature, long timestamp)
@@ -148,11 +130,11 @@ public class LnMarketsApiService : ILnMarketsApiService
                 if (logParameters != null)
                 {
                     var sanitizedParams = SanitizeLogParameters(logParameters);
-                    _logger.LogInformation($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
+                    _logger.LogDebug($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
                 }
                 else
                 {
-                    _logger.LogInformation($"{operationName} successful");
+                    _logger.LogDebug($"{operationName} successful");
                 }
 
                 return true;
@@ -206,11 +188,11 @@ public class LnMarketsApiService : ILnMarketsApiService
 
             if (data is IEnumerable<object> enumerable)
             {
-                _logger.LogInformation($"{operationName} successful, retrieved {{Count}} items", enumerable.Count());
+                _logger.LogDebug($"{operationName} successful, retrieved {{Count}} items", enumerable.Count());
             }
             else
             {
-                _logger.LogInformation($"{operationName} successful");
+                _logger.LogDebug($"{operationName} successful");
             }
 
             return data;
@@ -219,31 +201,6 @@ public class LnMarketsApiService : ILnMarketsApiService
         {
             _logger.LogError(ex, $"Exception occurred while executing {operationName}");
             return defaultValue;
-        }
-        finally
-        {
-            ClearLnMarketsHeaders();
-        }
-    }
-
-    private async Task<string> ExecuteGetStringRequestAsync(string key, string passphrase, string secret, string method, string path, string queryParams, string operationName)
-    {
-        var timestamp = GetUtcNowInUnixTimestamp();
-        var signaturePayload = $"{timestamp}{method}{path}{queryParams}";
-
-        SetLnMarketsHeaders(key, passphrase, GetSignature(secret, signaturePayload), timestamp);
-
-        try
-        {
-            var requestUrl = $"{path}?{queryParams}";
-            var data = await _httpClient.GetStringAsync(requestUrl);
-            _logger.LogInformation($"{operationName} successful");
-            return data;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Exception occurred while executing {operationName}");
-            throw;
         }
         finally
         {

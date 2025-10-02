@@ -8,362 +8,221 @@ using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
-public class LnMarketsBackgroundService(IServiceScopeFactory _scopeFactory, ILogger<LnMarketsBackgroundService> _logger, IOptions<LnMarketsOptions> _options) : BackgroundService
+public class LnMarketsBackgroundService(IPriceQueue _priceQueue, IOptionsMonitor<LnMarketsOptions> _options, ILogger<LnMarketsBackgroundService> _logger) : BackgroundService
 {
-    private static class Constants
+    private const string FuturesChannel = "futures:btc_usd:last-price";
+
+    private enum JsonRpcMessageType
     {
-        public const int SatoshisPerBitcoin = 100_000_000;
-        public const string JsonRpcVersion = "2.0";
-        public const string SubscribeMethod = "v1/public/subscribe";
-        public const string FuturesChannel = "futures:btc_usd:last-price";
+        Unknown,
+        Subscription,
+        Response,
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            using var webSocket = new ClientWebSocket();
+            using var client = new ClientWebSocket();
 
-            var uri = new Uri(_options.Value.Endpoint);
+            var uri = new Uri(_options.CurrentValue.Endpoint);
             if (uri.Scheme != "wss")
             {
-                _logger.LogWarning("Modifying endpoint scheme from '{}' to 'wss'", uri.Scheme);
-                uri = new Uri("wss://" + uri.Host);
+                _logger.LogWarning("Modifying endpoint scheme from {Scheme} to 'wss'", uri.Scheme);
+                var ub = new UriBuilder(uri)
+                {
+                    Scheme = "wss",
+                    Port = uri.IsDefaultPort ? -1 : uri.Port,
+                };
+                uri = ub.Uri;
             }
 
             try
             {
-                await webSocket.ConnectAsync(uri, stoppingToken);
+                await client.ConnectAsync(uri, stoppingToken);
 
-                var payload = $"{{\"jsonrpc\":\"{Constants.JsonRpcVersion}\",\"id\":\"{Guid.NewGuid()}\",\"method\":\"{Constants.SubscribeMethod}\",\"params\":[\"{Constants.FuturesChannel}\"]}}";
+                const string JsonRpcVersion = "2.0";
+                const string SubscribeMethod = "v1/public/subscribe";
+
+                var payload = $"{{\"jsonrpc\":\"{JsonRpcVersion}\",\"id\":\"{Guid.NewGuid()}\",\"method\":\"{SubscribeMethod}\",\"params\":[\"{FuturesChannel}\"]}}";
                 var messageBuffer = Encoding.UTF8.GetBytes(payload);
                 var segment = new ArraySegment<byte>(messageBuffer);
 
-                await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, stoppingToken);
-                await ReceiveMessagesAsync(webSocket, stoppingToken);
+                await client.SendAsync(segment, WebSocketMessageType.Text, true, stoppingToken);
+
+                var buffer = ArrayPool<byte>.Shared.Rent(_options.CurrentValue.WebSocketBufferSize);
+                try
+                {
+                    while (client.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
+                    {
+                        var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), stoppingToken);
+                        switch (result.MessageType)
+                        {
+                            case WebSocketMessageType.Close:
+                                await client.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, stoppingToken);
+                                break;
+                            case WebSocketMessageType.Text:
+                                byte[]? message = null;
+                                if (result.EndOfMessage)
+                                {
+                                    message = new byte[result.Count];
+                                    Array.Copy(buffer, 0, message, 0, result.Count);
+                                }
+                                else
+                                {
+                                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.CurrentValue.MessageTimeoutSeconds));
+                                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
+                                    try
+                                    {
+                                        message = await AssembleFragmentedMessageAsync(client, buffer, result, linkedCts.Token, _logger);
+                                    }
+                                    catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
+                                    {
+                                        if (client.State == WebSocketState.Open)
+                                        {
+                                            _logger.LogWarning("Fragmented message assembly timed out - closing connection to prevent state corruption");
+                                            await client.CloseAsync(WebSocketCloseStatus.InternalServerError, "Fragmentation timeout", stoppingToken);
+                                        }
+
+                                        break; // Exit message loop to trigger reconnection
+                                    }
+                                }
+
+                                if (message != null)
+                                {
+                                    HandleWsTextMessage(message);
+                                }
+
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
             catch (WebSocketException wsEx)
             {
-                _logger.LogWarning(wsEx, "WebSocket connection failed, retrying in {DelaySeconds}s", _options.Value.ReconnectDelaySeconds);
+                _logger.LogWarning(wsEx, "WebSocket connection failed, retrying in {DelaySeconds}s", _options.CurrentValue.ReconnectDelaySeconds);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Background service stopping due to cancellation");
-                break;
+                return;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in background service");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(_options.Value.ReconnectDelaySeconds), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(_options.CurrentValue.ReconnectDelaySeconds), stoppingToken);
         }
     }
 
-    private async Task ReceiveMessagesAsync(ClientWebSocket webSocket, CancellationToken stoppingToken)
+    private void HandleWsTextMessage(byte[] messageBytes)
     {
-        var buffer = ArrayPool<byte>.Shared.Rent(_options.Value.WebSocketBufferSize);
+        if (messageBytes == null || messageBytes.Length == 0)
+        {
+            _logger.LogWarning("Received empty or null web socket message");
+            return;
+        }
+
         try
         {
-            var lastPrice = 0m;
-            var lastCall = DateTime.UtcNow;
-            while (webSocket.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
+            var messageAsString = Encoding.UTF8.GetString(messageBytes);
+            var messageType = DetermineMessageType(messageAsString);
+            if (messageType != JsonRpcMessageType.Subscription)
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), stoppingToken);
-                switch (result.MessageType)
-                {
-                    case WebSocketMessageType.Close:
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, stoppingToken);
-                        break;
-                    case WebSocketMessageType.Text:
-                        var textMessageResult = await HandleWsTextMessage(buffer, result, lastPrice, lastCall);
-                        if (textMessageResult != null)
-                        {
-                            lastPrice = textMessageResult.Value.Price;
-                            lastCall = textMessageResult.Value.Timestamp;
-                        }
-
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-    }
-
-    private async Task<(decimal Price, DateTime Timestamp)?> HandleWsTextMessage(byte[] buffer, WebSocketReceiveResult result, decimal lastPrice, DateTime lastCall)
-    {
-        try
-        {
-            if (buffer == null || result.Count <= 0)
-            {
-                _logger.LogWarning("Received empty or null WebSocket message");
-                return null;
+                return;
             }
 
-            var messageAsString = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            var messageAsLastPriceDTO = ParseMessage(messageAsString);
-            if (messageAsLastPriceDTO is null)
+            var subscription = JsonSerializer.Deserialize<JsonRpcSubscription>(messageAsString);
+            if (subscription == null)
             {
-                return null;
+                _logger.LogWarning("Failed to deserialize json rpc subscription: {MessageContent}", messageAsString);
+                return;
             }
 
-            if (!IsMessageValid(messageAsLastPriceDTO, lastPrice, lastCall))
+            if (subscription.Params == null)
             {
-                return null;
+                _logger.LogWarning("Subscription missing params: {Message}", messageAsString);
+                return;
             }
 
-            var price = Math.Floor(messageAsLastPriceDTO.LastPrice / _options.Value.Factor) * _options.Value.Factor;
-
-            using var scope = _scopeFactory?.CreateScope();
-            if (scope == null)
+            if (subscription.Params.Data.ValueKind == JsonValueKind.Undefined || subscription.Params.Data.ValueKind == JsonValueKind.Null)
             {
-                _logger.LogError("Failed to create service scope");
-                return null;
+                _logger.LogWarning("Subscription params missing data for channel {Channel}", subscription.Params.Channel);
+                return;
             }
 
-            var (options, apiService) = GetScopedServices(scope);
-
-            var user = await apiService.GetUser(options.Key, options.Passphrase, options.Secret);
-            if (user == null || user.balance == 0)
+            switch (subscription.Params.Channel)
             {
-                return null;
-            }
-
-            await ProcessMarginManagement(apiService, options, messageAsLastPriceDTO, user);
-            await ProcessTradeExecution(apiService, options, messageAsLastPriceDTO, user);
-
-            return (price, DateTime.UtcNow);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing WebSocket text message");
-            return null;
-        }
-    }
-
-    private bool IsMessageValid(LastPriceData messageData, decimal lastPrice, DateTime lastCall)
-    {
-        var messageTimeDifference = DateTime.UtcNow - (messageData.Time?.TimeStampToDateTime() ?? DateTime.MinValue);
-        if (messageTimeDifference >= TimeSpan.FromSeconds(_options.Value.MessageTimeoutSeconds))
-        {
-            return false;
-        }
-
-        var price = Math.Floor(messageData.LastPrice / _options.Value.Factor) * _options.Value.Factor;
-        if (price == lastPrice)
-        {
-            return false;
-        }
-
-        if ((DateTime.UtcNow - lastCall).TotalSeconds < _options.Value.MinCallIntervalSeconds)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private (LnMarketsOptions Options, ILnMarketsApiService ApiService) GetScopedServices(IServiceScope scope)
-    {
-        var optionsMonitor = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<LnMarketsOptions>>();
-        var options = optionsMonitor.CurrentValue;
-        var apiService = scope.ServiceProvider.GetService<ILnMarketsApiService>() ??
-            throw new InvalidOperationException("ILnMarketsApiService not registered in DI container");
-        return (options, apiService);
-    }
-
-    private async Task ProcessMarginManagement(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData messageData, UserModel user)
-    {
-        try
-        {
-            var addedMarginInUsd = 0m;
-            var runningTrades = await apiService.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
-
-            foreach (var runningTrade in runningTrades)
-            {
-                if (runningTrade.margin <= 0)
-                {
-                    _logger.LogWarning("Skipping trade {TradeId} with invalid margin: {Margin}", runningTrade.id, runningTrade.margin);
-                    continue;
-                }
-
-                var loss = (runningTrade.pl / runningTrade.margin) * 100;
-                if (loss <= options.MaxLossInPercent)
-                {
-                    var margin = CalculateMarginToAdd(messageData.LastPrice, runningTrade, options);
-                    if (margin > 0)
+                case FuturesChannel:
+                    var lastPriceData = JsonSerializer.Deserialize<LastPriceData>(subscription.Params.Data.GetRawText());
+                    if (lastPriceData == null)
                     {
-                        var amount = (int)(margin * options.AddMarginInUsd);
-                        _ = await apiService.AddMargin(options.Key, options.Passphrase, options.Secret, runningTrade.id, amount);
-                        addedMarginInUsd += options.AddMarginInUsd;
+                        _logger.LogWarning("Failed to deserialize data from json rpc subscription {Subscription}", subscription);
+                        return;
                     }
-                }
-            }
 
-            if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
-            {
-                _ = await apiService.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)addedMarginInUsd);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during margin management");
-        }
-    }
-
-    private decimal CalculateMarginToAdd(decimal currentPrice, FuturesTradeModel runningTrade, LnMarketsOptions options)
-    {
-        if (currentPrice <= 0)
-        {
-            _logger.LogWarning("Invalid current price: {Price}", currentPrice);
-            return 0;
-        }
-
-        if (runningTrade.price <= 0 || runningTrade.quantity <= 0)
-        {
-            _logger.LogWarning("Invalid trade data - Price: {Price}, Quantity: {Quantity}", runningTrade.price, runningTrade.quantity);
-            return 0;
-        }
-
-        var btcInSat = Constants.SatoshisPerBitcoin;
-        var margin = Math.Round(btcInSat / currentPrice);
-        var maxMargin = (btcInSat / runningTrade.price) * runningTrade.quantity;
-
-        if (margin + runningTrade.margin > maxMargin)
-        {
-            margin = maxMargin - runningTrade.margin;
-        }
-
-        return Math.Max(0, margin);
-    }
-
-    private async Task ProcessTradeExecution(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData messageData, UserModel user)
-    {
-        try
-        {
-            if (options.Pause)
-            {
-                return;
-            }
-
-            if (messageData.LastPrice <= 0)
-            {
-                _logger.LogWarning("Invalid last price: {Price}", messageData.LastPrice);
-                return;
-            }
-
-            var tradePrice = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
-            var runningTrades = await apiService.FuturesGetRunningTradesAsync(options.Key, options.Passphrase, options.Secret);
-            var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePrice);
-
-            if (currentTrade != null || runningTrades.Count() > options.MaxRunningTrades)
-            {
-                return;
-            }
-
-            var btcInSat = Constants.SatoshisPerBitcoin;
-            var oneUsdInSats = btcInSat / messageData.LastPrice;
-            var openTrades = await apiService.FuturesGetOpenTradesAsync(options.Key, options.Passphrase, options.Secret);
-            var freeMargin = CalculateFreeMargin(user, openTrades, runningTrades);
-
-            if (freeMargin <= oneUsdInSats)
-            {
-                return;
-            }
-
-            var openTrade = openTrades.FirstOrDefault(x => x.price == tradePrice);
-            if (openTrade is null && tradePrice + options.Takeprofit < options.MaxTakeprofitPrice)
-            {
-                await CancelAllOpenTrades(apiService, options, openTrades);
-                _ = await apiService.CreateLimitBuyOrder(
-                    options.Key,
-                    options.Passphrase,
-                    options.Secret,
-                    tradePrice,
-                    tradePrice + options.Takeprofit,
-                    options.Leverage,
-                    options.Quantity);
+                    _logger.LogInformation("Last Price update: {LastPrice}$", lastPriceData.LastPrice);
+                    _priceQueue.UpdatePrice(lastPriceData);
+                    return;
+                default:
+                    _logger.LogWarning("Received subscription data for unknown channel: {Channel}", subscription.Params.Channel);
+                    return;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during trade execution");
+            _logger.LogError(ex, "Error processing web socket text message");
+            return;
         }
     }
 
-    private decimal CalculateFreeMargin(UserModel user, IEnumerable<FuturesTradeModel> openTrades, IEnumerable<FuturesTradeModel> runningTrades)
+    private static async Task<byte[]?> AssembleFragmentedMessageAsync(ClientWebSocket client, byte[] buffer, WebSocketReceiveResult firstResult, CancellationToken cancellationToken, ILogger? logger = null)
     {
-        var btcInSat = Constants.SatoshisPerBitcoin;
-        var realMargin = Math.Round(
-            openTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum() +
-            runningTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum());
-        return user.balance - realMargin;
-    }
+        logger?.LogDebug("Receiving fragmented WebSocket message");
 
-    private async Task CancelAllOpenTrades(ILnMarketsApiService apiService, LnMarketsOptions options, IEnumerable<FuturesTradeModel> openTrades)
-    {
-        foreach (var oldTrade in openTrades)
-        {
-            try
-            {
-                _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
-            }
-        }
-    }
+        using var ms = new MemoryStream();
+        ms.Write(buffer, 0, firstResult.Count);
 
-    private LastPriceData? ParseMessage(string jsonMessage)
-    {
-        var messageType = DetermineMessageType(jsonMessage);
-        switch (messageType)
+        WebSocketReceiveResult result;
+        do
         {
-            case "JsonRpcSubscription":
-                var subscription = JsonSerializer.Deserialize<JsonRpcSubscription>(jsonMessage);
-                return subscription != null ? HandleJsonRpcSubscription(subscription) : null;
-            case "JsonRpcResponse":
-            default:
+            cancellationToken.ThrowIfCancellationRequested();
+            result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+            if (result.MessageType != WebSocketMessageType.Text)
+            {
+                logger?.LogWarning("Unexpected message type during fragmented message assembly: {MessageType}", result.MessageType);
                 return null;
+            }
+
+            ms.Write(buffer, 0, result.Count);
         }
+        while (!result.EndOfMessage);
+
+        var assembledMessage = ms.ToArray();
+
+        logger?.LogDebug("Assembled fragmented message: {TotalLength} bytes", assembledMessage.Length);
+        return assembledMessage;
     }
 
-    private string DetermineMessageType(string jsonMessage)
+    private static JsonRpcMessageType DetermineMessageType(string jsonMessage)
     {
         using var doc = JsonDocument.Parse(jsonMessage);
         if (doc.RootElement.TryGetProperty("result", out _))
         {
-            return "JsonRpcResponse";
+            return JsonRpcMessageType.Response;
         }
         else if (doc.RootElement.TryGetProperty("method", out _) && doc.RootElement.TryGetProperty("params", out _))
         {
-            return "JsonRpcSubscription";
+            return JsonRpcMessageType.Subscription;
         }
 
-        return "Unknown";
-    }
-
-    private LastPriceData? HandleJsonRpcSubscription(JsonRpcSubscription subscription)
-    {
-        try
-        {
-            return JsonSerializer.Deserialize<LastPriceData>(subscription.Params.Data.GetRawText());
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogWarning(ex, "Failed to deserialize LastPriceData from subscription data: {RawData}", subscription.Params.Data.GetRawText());
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error while parsing subscription data: {RawData}", subscription.Params.Data.GetRawText());
-            return null;
-        }
+        return JsonRpcMessageType.Unknown;
     }
 }

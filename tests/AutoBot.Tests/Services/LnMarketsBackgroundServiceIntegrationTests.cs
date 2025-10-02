@@ -15,6 +15,8 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
     private readonly ServiceProvider _serviceProvider;
     private readonly Mock<ILogger<LnMarketsBackgroundService>> _mockLogger;
     private readonly Mock<ILnMarketsApiService> _mockApiService;
+    private readonly Mock<IPriceQueue> _mockPriceQueue;
+    private readonly Mock<ITradeManager> _mockTradeManager;
     private readonly LnMarketsOptions _options;
 
     public LnMarketsBackgroundServiceIntegrationTests()
@@ -22,9 +24,12 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
         _services = new ServiceCollection();
         _mockLogger = new Mock<ILogger<LnMarketsBackgroundService>>();
         _mockApiService = new Mock<ILnMarketsApiService>();
+        _mockPriceQueue = new Mock<IPriceQueue>();
+        _mockTradeManager = new Mock<ITradeManager>();
 
         _options = new LnMarketsOptions
         {
+            Endpoint = "https://test.endpoint",
             Key = "test-key",
             Passphrase = "test-passphrase", 
             Secret = "test-secret",
@@ -46,6 +51,7 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
         // Configure services
         _services.Configure<LnMarketsOptions>(opts =>
         {
+            opts.Endpoint = _options.Endpoint;
             opts.Key = _options.Key;
             opts.Passphrase = _options.Passphrase;
             opts.Secret = _options.Secret;
@@ -66,6 +72,8 @@ public sealed class LnMarketsBackgroundServiceIntegrationTests : IDisposable
 
         _services.AddSingleton(_mockLogger.Object);
         _services.AddSingleton(_mockApiService.Object);
+        _services.AddSingleton(_mockPriceQueue.Object);
+        _services.AddSingleton(_mockTradeManager.Object);
         _services.AddSingleton<LnMarketsBackgroundService>();
 
         _serviceProvider = _services.BuildServiceProvider();

@@ -1,7 +1,6 @@
 using AutoBot.Models;
 using AutoBot.Services;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -10,17 +9,17 @@ namespace AutoBot.Tests.Services;
 
 public sealed class LnMarketsBackgroundServiceTests : IDisposable
 {
-    private readonly Mock<IServiceScopeFactory> _mockScopeFactory;
+    private readonly Mock<IPriceQueue> _mockPriceQueue;
+    private readonly Mock<IOptionsMonitor<LnMarketsOptions>> _mockOptions;
     private readonly Mock<ILogger<LnMarketsBackgroundService>> _mockLogger;
-    private readonly Mock<IOptions<LnMarketsOptions>> _mockOptions;
     private readonly LnMarketsOptions _options;
     private readonly LnMarketsBackgroundService _service;
 
     public LnMarketsBackgroundServiceTests()
     {
-        _mockScopeFactory = new Mock<IServiceScopeFactory>();
+        _mockPriceQueue = new Mock<IPriceQueue>();
+        _mockOptions = new Mock<IOptionsMonitor<LnMarketsOptions>>();
         _mockLogger = new Mock<ILogger<LnMarketsBackgroundService>>();
-        _mockOptions = new Mock<IOptions<LnMarketsOptions>>();
 
         _options = new LnMarketsOptions
         {
@@ -42,25 +41,25 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
             Pause = false
         };
 
-        _mockOptions.Setup(o => o.Value).Returns(_options);
-        _service = new LnMarketsBackgroundService(_mockScopeFactory.Object, _mockLogger.Object, _mockOptions.Object);
+        _mockOptions.Setup(o => o.CurrentValue).Returns(_options);
+        _service = new LnMarketsBackgroundService(_mockPriceQueue.Object, _mockOptions.Object, _mockLogger.Object);
     }
 
     [Fact]
     public void Constructor_WithValidParameters_ShouldNotThrow()
     {
         // Arrange & Act
-        var service = new LnMarketsBackgroundService(_mockScopeFactory.Object, _mockLogger.Object, _mockOptions.Object);
+        var service = new LnMarketsBackgroundService(_mockPriceQueue.Object, _mockOptions.Object, _mockLogger.Object);
 
         // Assert
         service.Should().NotBeNull();
     }
 
     [Fact]
-    public void Constructor_WithNullScopeFactory_ShouldNotThrow()
+    public void Constructor_WithNullPriceQueue_ShouldNotThrow()
     {
         // Arrange & Act
-        var service = new LnMarketsBackgroundService(null!, _mockLogger.Object, _mockOptions.Object);
+        var service = new LnMarketsBackgroundService(null!, _mockOptions.Object, _mockLogger.Object);
 
         // Assert
         service.Should().NotBeNull();
@@ -70,7 +69,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
     public void Constructor_WithNullLogger_ShouldNotThrow()
     {
         // Arrange & Act  
-        var service = new LnMarketsBackgroundService(_mockScopeFactory.Object, null!, _mockOptions.Object);
+        var service = new LnMarketsBackgroundService(_mockPriceQueue.Object, _mockOptions.Object, null!);
 
         // Assert
         service.Should().NotBeNull();
@@ -80,7 +79,7 @@ public sealed class LnMarketsBackgroundServiceTests : IDisposable
     public void Constructor_WithNullOptions_ShouldNotThrow()
     {
         // Arrange & Act
-        var service = new LnMarketsBackgroundService(_mockScopeFactory.Object, _mockLogger.Object, null!);
+        var service = new LnMarketsBackgroundService(_mockPriceQueue.Object, null!, _mockLogger.Object);
 
         // Assert
         service.Should().NotBeNull();

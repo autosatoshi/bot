@@ -10,9 +10,6 @@ builder.Configuration
     .AddJsonFile(Path.Combine(contentRoot, $"appsettings.Development.json"), optional: true, reloadOnChange: true);
 
 // Configure Options pattern
-builder.Services.Configure<LnMarketsOptions>(
-    builder.Configuration.GetSection(LnMarketsOptions.SectionName));
-
 builder.Services.AddOptions<LnMarketsOptions>()
     .Bind(builder.Configuration.GetSection(LnMarketsOptions.SectionName))
     .ValidateDataAnnotations()
@@ -23,6 +20,8 @@ builder.Services.AddHttpClient();
 builder.Services.AddLogging();
 
 builder.Services.AddSingleton<ILnMarketsApiService, LnMarketsApiService>();
+builder.Services.AddSingleton<ITradeManager, TradeManager>();
+builder.Services.AddSingleton<IPriceQueue, PriceQueue>();
 builder.Services.AddHostedService<LnMarketsBackgroundService>();
 
 var host = builder.Build();

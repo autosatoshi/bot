@@ -31,9 +31,12 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
         
         // Create mock options with default values
         _mockOptions = new Mock<IOptions<LnMarketsOptions>>();
-        _mockOptions.Setup(o => o.Value).Returns(new LnMarketsOptions());
+        _mockOptions.Setup(o => o.Value).Returns(new LnMarketsOptions 
+        { 
+            Endpoint = "https://test.endpoint" 
+        });
         
-        _service = new LnMarketsApiService(mockFactory.Object, _mockLogger.Object, _mockOptions.Object);
+        _service = new LnMarketsApiService(mockFactory.Object, _mockOptions.Object, _mockLogger.Object);
     }
 
     [Fact]
@@ -116,7 +119,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
     }
 
     [Fact]
-    public async Task FuturesGetRunningTradesAsync_WhenSuccessful_ShouldReturnTrades()
+    public async Task GetRunningTrades_WhenSuccessful_ShouldReturnTrades()
     {
         // Arrange
         var key = "test-key";
@@ -189,7 +192,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.FuturesGetRunningTradesAsync(key, passphrase, secret);
+        var result = await _service.GetRunningTrades(key, passphrase, secret);
 
         // Assert
         result.Should().NotBeNull();

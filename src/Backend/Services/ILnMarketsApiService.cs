@@ -4,13 +4,9 @@ namespace AutoBot.Services;
 
 public interface ILnMarketsApiService
 {
-    Task<IEnumerable<FuturesTradeModel>> FuturesGetRunningTradesAsync(string key, string passphrase, string secret);
+    Task<IEnumerable<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret);
 
-    Task<IEnumerable<FuturesTradeModel>> FuturesGetOpenTradesAsync(string key, string passphrase, string secret);
-
-    Task<string> GetWithdrawals(string key, string passphrase, string secret);
-
-    Task<IEnumerable<DepositModel>> GetDeposits(string key, string passphrase, string secret);
+    Task<IEnumerable<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret);
 
     Task<UserModel> GetUser(string key, string passphrase, string secret);
 
