@@ -148,9 +148,9 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var tradePrice = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
+            var tradePriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
             var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
-            var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePrice);
+            var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePriceInUsd);
 
             if (currentTrade != null || runningTrades.Count() >= options.MaxRunningTrades)
             {
@@ -159,53 +159,58 @@ public class TradeManager : ITradeManager
 
             var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
             var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
-            var freeMargin = CalculateFreeMargin(user, openTrades, runningTrades);
+            var freeMarginInSats = CalculateFreeMargin(user, openTrades, runningTrades);
 
-            if (freeMargin <= oneUsdInSats)
+            if (freeMarginInSats <= oneUsdInSats)
             {
                 return;
             }
 
-            var openTrade = openTrades.FirstOrDefault(x => x.price == tradePrice);
+            var openTrade = openTrades.FirstOrDefault(x => x.price == tradePriceInUsd);
+            if (openTrade != null)
+            {
+                logger?.LogInformation("Skipping trade execution for price {Price}$ because an open trade with the same price already exists.", tradePriceInUsd);
+                return;
+            }
 
-            var feeAdjustedTakeprofit = tradePrice + options.Takeprofit;
+            var exitPriceInUsd = tradePriceInUsd + options.Takeprofit;
             if (options.UseBreakevenCalculation)
             {
                 var feeRate = GetFeeRateFromTier(user.fee_tier);
                 logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, feeRate);
 
-                var exitPrice = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, tradePrice, options.Leverage, feeRate, 100, TradeSide.Buy);
-                logger?.LogInformation("Adjusted exit price from {ExitPrice}$ to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", feeAdjustedTakeprofit, exitPrice, 100);
-                feeAdjustedTakeprofit = Math.Round(exitPrice, 0, MidpointRounding.AwayFromZero);
+                var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, tradePriceInUsd, options.Leverage, feeRate, 100, TradeSide.Buy);
+                logger?.LogInformation("Adjusted exit price from {ExitPrice}$ to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", exitPriceInUsd, adjustedExitPriceInUsd, 100);
+                exitPriceInUsd = Math.Round(adjustedExitPriceInUsd, 0, MidpointRounding.AwayFromZero);
             }
 
-            if (openTrade is null && feeAdjustedTakeprofit < options.MaxTakeprofitPrice)
+            if (exitPriceInUsd >= options.MaxTakeprofitPrice)
             {
-                foreach (var oldTrade in openTrades)
-                {
-                    try
-                    {
-                        _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.LogError(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
-                    }
-                }
+                return;
+            }
 
-                if (await apiService.CreateLimitBuyOrder(
-                    options.Key,
-                    options.Passphrase,
-                    options.Secret,
-                    tradePrice,
-                    feeAdjustedTakeprofit,
-                    options.Leverage,
-                    options.Quantity))
+            foreach (var oldTrade in openTrades)
+            {
+                try
                 {
-                    var originalTakeprofit = tradePrice + options.Takeprofit;
-                    var feeAdjustment = feeAdjustedTakeprofit - originalTakeprofit;
-                    logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}' (was '{}', adjusted by ${:F2} for fees), leverage: '{}', quantity: '{}']", tradePrice, feeAdjustedTakeprofit, originalTakeprofit, feeAdjustment, options.Leverage, options.Quantity);
+                    _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
                 }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
+                }
+            }
+
+            if (await apiService.CreateLimitBuyOrder(
+                options.Key,
+                options.Passphrase,
+                options.Secret,
+                tradePriceInUsd,
+                exitPriceInUsd,
+                options.Leverage,
+                options.Quantity))
+            {
+                logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}', leverage: '{}', quantity: '{}']", tradePriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
             }
         }
         catch (Exception ex)
