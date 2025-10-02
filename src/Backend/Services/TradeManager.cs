@@ -174,7 +174,6 @@ public class TradeManager : ITradeManager
                 var feeRate = GetFeeRateFromTier(user.fee_tier);
                 logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, feeRate);
 
-                // feeAdjustedTakeprofit = CalculateFeeAdjustedTakeprofit(tradePrice, options.Takeprofit, options.Quantity, options.Leverage, userFeeRate, logger);
                 var exitPrice = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, tradePrice, options.Leverage, feeRate, 100, TradeSide.Buy);
                 logger?.LogInformation("Adjusted exit price from {ExitPrice}$ to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", feeAdjustedTakeprofit, exitPrice, 100);
                 feeAdjustedTakeprofit = Math.Round(exitPrice, 0, MidpointRounding.AwayFromZero);
@@ -240,42 +239,5 @@ public class TradeManager : ITradeManager
             3 => 0.0006m,  // Tier 4: 0.06%
             _ => 0.001m,   // Default to highest fee rate for safety
         };
-    }
-
-    private static decimal CalculateFeeAdjustedTakeprofit(decimal entryPrice, int takeProfit, int quantity, int leverage, decimal feeRate, ILogger? logger = null)
-    {
-        var desiredProfitUsd = takeProfit;
-        var desiredTakeprofitPrice = entryPrice + desiredProfitUsd;
-
-        // Use TradeFactory to calculate the exact breakeven price (net P&L = 0 after all fees)
-        var breakevenPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, TradeSide.Buy);
-
-        // Calculate minimum profitable price with desired profit margin
-        var safetyMarginSats = desiredProfitUsd * (Constants.SatoshisPerBitcoin / entryPrice); // Convert desired profit to sats
-        var minProfitablePrice = TradeFactory.CalculateExitPriceForTargetNetPL(
-            quantity, entryPrice, leverage, feeRate, safetyMarginSats, TradeSide.Buy);
-
-        // Use the higher of the two: desired takeprofit or minimum profitable price
-        var adjustedTakeprofit = Math.Max(desiredTakeprofitPrice, minProfitablePrice);
-
-        // Round up to the nearest dollar for practical pricing
-        adjustedTakeprofit = Math.Ceiling(adjustedTakeprofit);
-
-        // Verify the result by creating a simulated trade
-        var simulatedTrade = TradeFactory.CreateTrade(
-            quantity, entryPrice, leverage, TradeSide.Buy, adjustedTakeprofit, TradeState.Closed, feeRate: feeRate);
-        var netPL = simulatedTrade.pl - simulatedTrade.opening_fee - simulatedTrade.closing_fee;
-
-        var adjustment = adjustedTakeprofit - desiredTakeprofitPrice;
-
-        logger?.LogInformation(
-            "Precise breakeven takeprofit: Entry={Entry}$, Desired={Desired}$, Breakeven={Breakeven:F2}$, Final={Final}$, Net P&L={NetPL} sats",
-            entryPrice,
-            desiredProfitUsd,
-            breakevenPrice,
-            adjustedTakeprofit,
-            netPL);
-
-        return adjustedTakeprofit;
     }
 }
