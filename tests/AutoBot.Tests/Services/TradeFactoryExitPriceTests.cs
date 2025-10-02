@@ -8,16 +8,16 @@ public class TradeFactoryExitPriceTests
     private const decimal Tolerance = 1.0m; // 1 sat tolerance for rounding differences
 
     [Theory]
-    [InlineData(100, 50000, 1, 0.001, "buy")]
-    [InlineData(1000, 60000, 2, 0.0008, "buy")]
-    [InlineData(500, 75000, 5, 0.0007, "buy")]
-    [InlineData(2000, 45000, 10, 0.0006, "buy")]
+    [InlineData(100, 50000, 1, 0.001, TradeSide.Buy)]
+    [InlineData(1000, 60000, 2, 0.0008, TradeSide.Buy)]
+    [InlineData(500, 75000, 5, 0.0007, TradeSide.Buy)]
+    [InlineData(2000, 45000, 10, 0.0006, TradeSide.Buy)]
     public void CalculateExitPriceForTargetNetPL_WithZeroTarget_ShouldResultInZeroNetPL(
         decimal quantity, 
         decimal entryPrice, 
         decimal leverage, 
         decimal feeRate, 
-        string side)
+        TradeSide side)
     {
         // Act
         var exitPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, side);
@@ -34,18 +34,18 @@ public class TradeFactoryExitPriceTests
     }
 
     [Theory]
-    [InlineData(100, 50000, 1, 0.001, 100, "buy")]    // Target 100 sats profit
-    [InlineData(100, 50000, 1, 0.001, 500, "buy")]    // Target 500 sats profit
-    [InlineData(100, 50000, 1, 0.001, 1000, "buy")]   // Target 1000 sats profit
-    [InlineData(1000, 60000, 2, 0.0008, 200, "buy")]  // Different quantity/leverage
-    [InlineData(500, 75000, 5, 0.0007, 300, "buy")]   // High leverage scenario
+    [InlineData(100, 50000, 1, 0.001, 100, TradeSide.Buy)]    // Target 100 sats profit
+    [InlineData(100, 50000, 1, 0.001, 500, TradeSide.Buy)]    // Target 500 sats profit
+    [InlineData(100, 50000, 1, 0.001, 1000, TradeSide.Buy)]   // Target 1000 sats profit
+    [InlineData(1000, 60000, 2, 0.0008, 200, TradeSide.Buy)]  // Different quantity/leverage
+    [InlineData(500, 75000, 5, 0.0007, 300, TradeSide.Buy)]   // High leverage scenario
     public void CalculateExitPriceForTargetNetPL_WithProfitTarget_ShouldResultInTargetNetPL(
         decimal quantity, 
         decimal entryPrice, 
         decimal leverage, 
         decimal feeRate, 
         decimal targetProfitSats, 
-        string side)
+        TradeSide side)
     {
         // Act
         var exitPrice = TradeFactory.CalculateExitPriceForTargetNetPL(
@@ -74,8 +74,8 @@ public class TradeFactoryExitPriceTests
         decimal feeRate)
     {
         // Test zero target net P&L calculation
-        var zeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, "buy");
-        var zeroTargetTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, "buy", zeroTargetPrice, TradeState.Closed, feeRate: feeRate);
+        var zeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, TradeSide.Buy);
+        var zeroTargetTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, TradeSide.Buy, zeroTargetPrice, TradeState.Closed, feeRate: feeRate);
         var zeroTargetNetPL = zeroTargetTrade.pl - zeroTargetTrade.opening_fee - zeroTargetTrade.closing_fee;
         
         zeroTargetNetPL.Should().BeInRange(-Tolerance, Tolerance, 
@@ -83,8 +83,8 @@ public class TradeFactoryExitPriceTests
         
         // Test small profit target calculation
         var smallMargin = 50m; // 50 sats
-        var profitablePrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, smallMargin, "buy");
-        var profitableTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, "buy", profitablePrice, TradeState.Closed, feeRate: feeRate);
+        var profitablePrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, smallMargin, TradeSide.Buy);
+        var profitableTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, TradeSide.Buy, profitablePrice, TradeState.Closed, feeRate: feeRate);
         var profitableNetPL = profitableTrade.pl - profitableTrade.opening_fee - profitableTrade.closing_fee;
         
         profitableNetPL.Should().BeInRange(smallMargin - Tolerance, smallMargin + Tolerance,
@@ -113,8 +113,8 @@ public class TradeFactoryExitPriceTests
         var leverage = 3m;
         
         // Act
-        var zeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, "buy");
-        var trade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, "buy", zeroTargetPrice, TradeState.Closed, feeRate: feeRate);
+        var zeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, TradeSide.Buy);
+        var trade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, TradeSide.Buy, zeroTargetPrice, TradeState.Closed, feeRate: feeRate);
         var netPL = trade.pl - trade.opening_fee - trade.closing_fee;
         
         // Assert
@@ -136,18 +136,18 @@ public class TradeFactoryExitPriceTests
         var feeRate = 0.001m;
         
         // Act
-        var buyZeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, "buy");
-        var sellZeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, "sell");
+        var buyZeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, TradeSide.Buy);
+        var sellZeroTargetPrice = TradeFactory.CalculateExitPriceForTargetNetPL(quantity, entryPrice, leverage, feeRate, 0m, TradeSide.Sell);
         
         // Assert
         buyZeroTargetPrice.Should().BeGreaterThan(entryPrice, "Buy zero target should require higher exit price");
         sellZeroTargetPrice.Should().BeLessThan(entryPrice, "Sell zero target should require lower exit price");
         
         // Verify both result in zero net P&L
-        var buyTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, "buy", buyZeroTargetPrice, TradeState.Closed, feeRate: feeRate);
+        var buyTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, TradeSide.Buy, buyZeroTargetPrice, TradeState.Closed, feeRate: feeRate);
         var buyNetPL = buyTrade.pl - buyTrade.opening_fee - buyTrade.closing_fee;
         
-        var sellTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, "sell", sellZeroTargetPrice, TradeState.Closed, feeRate: feeRate);
+        var sellTrade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, TradeSide.Sell, sellZeroTargetPrice, TradeState.Closed, feeRate: feeRate);
         var sellNetPL = sellTrade.pl - sellTrade.opening_fee - sellTrade.closing_fee;
         
         buyNetPL.Should().BeInRange(-Tolerance, Tolerance, "Buy zero target should result in zero net P&L");
@@ -169,7 +169,7 @@ public class TradeFactoryExitPriceTests
         var adjustedTakeprofit = CallTradeManagerFeeAdjustedMethod(entryPrice, desiredProfitUsd, quantity, leverage, feeRate);
         
         // Verify the adjusted takeprofit results in profitable trade
-        var trade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, "buy", adjustedTakeprofit, TradeState.Closed, feeRate: feeRate);
+        var trade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, TradeSide.Buy, adjustedTakeprofit, TradeState.Closed, feeRate: feeRate);
         var actualNetPL = trade.pl - trade.opening_fee - trade.closing_fee;
         
         // Assert
@@ -201,7 +201,7 @@ public class TradeFactoryExitPriceTests
         var adjustedTakeprofit = CallTradeManagerFeeAdjustedMethod(entryPrice, desiredProfitUsd, quantity, leverage, feeRate);
         
         // Verify
-        var trade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, "buy", adjustedTakeprofit, TradeState.Closed, feeRate: feeRate);
+        var trade = TradeFactory.CreateTrade(quantity, entryPrice, leverage, TradeSide.Buy, adjustedTakeprofit, TradeState.Closed, feeRate: feeRate);
         var actualNetPL = trade.pl - trade.opening_fee - trade.closing_fee;
         
         // Assert

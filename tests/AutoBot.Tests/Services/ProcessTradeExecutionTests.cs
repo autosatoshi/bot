@@ -105,7 +105,7 @@ public class ProcessTradeExecutionTests
             quantity: 1m,
             entryPrice: 50000m, // Same as calculated tradePrice
             leverage: 2m,
-            side: "buy",
+            side: TradeSide.Buy,
             currentPrice: 50000m, // No P&L
             TradeState.Open,
             id: "open-trade");
@@ -134,7 +134,7 @@ public class ProcessTradeExecutionTests
             quantity: 1m,
             entryPrice: 50000m, // Same as calculated tradePrice
             leverage: 2m,
-            side: "buy",
+            side: TradeSide.Buy,
             currentPrice: 50000m, // No P&L
             TradeState.Running,
             id: "existing-trade");
@@ -162,7 +162,7 @@ public class ProcessTradeExecutionTests
                 quantity: 1m,
                 entryPrice: entryPrice,
                 leverage: 2m,
-                side: "buy",
+                side: TradeSide.Buy,
                 currentPrice: entryPrice, // No P&L
                 TradeState.Running,
                 id: $"trade-{i}"));
@@ -272,7 +272,7 @@ public class ProcessTradeExecutionTests
             quantity: 1m,
             entryPrice: 48000m, // Different from tradePrice (50000)
             leverage: 2m,
-            side: "buy",
+            side: TradeSide.Buy,
             currentPrice: 48000m, // No P&L
             TradeState.Open,
             id: "old-trade");
@@ -313,7 +313,7 @@ public class ProcessTradeExecutionTests
             quantity: 1m,
             entryPrice: 48000m,
             leverage: 2m,
-            side: "buy",
+            side: TradeSide.Buy,
             currentPrice: 48000m, // No P&L
             TradeState.Open,
             id: "failing-trade");
@@ -393,7 +393,7 @@ public class ProcessTradeExecutionTests
             quantity: 1m,
             entryPrice: expectedTradePrice, // This should match the calculated tradePrice
             leverage: 2m,
-            side: "buy",
+            side: TradeSide.Buy,
             currentPrice: expectedTradePrice, // No P&L
             TradeState.Running,
             id: "test-trade");
@@ -411,19 +411,19 @@ public class ProcessTradeExecutionTests
     }
 
     [Theory]
-    [InlineData(100, 114200, 115000, 100, "buy", 875, 113070, 87, 86, 609)]
-    [InlineData(1000, 110000, 111000, 50, "buy", 18181, 107843, 909, 900, 8190)]
-    [InlineData(500, 114347, 100000, 80, "buy", 5465, 112935.5, 437, 500, -62735)]
-    [InlineData(672, 97653, 99342, 74, "buy", 9299, 96351, 688, 676, 11699)]
-    [InlineData(10, 67213, 74521, 75, "buy", 198, 66330.5, 14, 13, 1459)]
-    [InlineData(4357, 87321.5, 101462.5, 2, "buy", 2494803, 58214.5, 4989, 4294, 695410)]
-    [InlineData(10000, 103643.5, 98340.5, 9.43, "buy", 1023166, 93706.5, 9648, 10168, -520292)]
+    [InlineData(100, 114200, 115000, 100, TradeSide.Buy, 875, 113070, 87, 86, 609)]
+    [InlineData(1000, 110000, 111000, 50, TradeSide.Buy, 18181, 107843, 909, 900, 8190)]
+    [InlineData(500, 114347, 100000, 80, TradeSide.Buy, 5465, 112935.5, 437, 500, -62735)]
+    [InlineData(672, 97653, 99342, 74, TradeSide.Buy, 9299, 96351, 688, 676, 11699)]
+    [InlineData(10, 67213, 74521, 75, TradeSide.Buy, 198, 66330.5, 14, 13, 1459)]
+    [InlineData(4357, 87321.5, 101462.5, 2, TradeSide.Buy, 2494803, 58214.5, 4989, 4294, 695410)]
+    [InlineData(10000, 103643.5, 98340.5, 9.43, TradeSide.Buy, 1023166, 93706.5, 9648, 10168, -520292)]
     public void TradeFactory_WithRealWorldLnMarketsValues_ShouldPopulateCorrectFuturesTradeModel(
         decimal quantity,
         decimal entryPrice,
         decimal exitPrice,
         decimal leverage,
-        string side,
+        TradeSide side,
         decimal expectedMargin,
         decimal expectedLiquidation,
         decimal expectedOpeningFee,
@@ -443,7 +443,7 @@ public class ProcessTradeExecutionTests
         Assert.Equal(quantity, trade.quantity);
         Assert.Equal(entryPrice, trade.price);
         Assert.Equal(leverage, trade.leverage);
-        Assert.Equal(side, trade.side);
+        Assert.Equal(side.ToString().ToLower(), trade.side);
         Assert.Equal(expectedMargin, trade.margin);
         Assert.Equal(expectedPL, trade.pl);
         Assert.Equal(expectedLiquidation, trade.liquidation);

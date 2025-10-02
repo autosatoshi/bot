@@ -54,20 +54,15 @@ public static class TradeFactory
         return 1 / inverseCurrentPrice;
     }
 
-    public static decimal CalculateExitPriceForTargetNetPL(decimal quantity, decimal entryPrice, decimal leverage, decimal feeRate, decimal targetNetPLSats, string side)
+    public static decimal CalculateExitPriceForTargetNetPL(decimal quantity, decimal entryPrice, decimal leverage, decimal feeRate, decimal targetNetPLSats, TradeSide side)
     {
         if (quantity <= 0 || entryPrice <= 0 || leverage <= 0 || feeRate < 0)
         {
             throw new ArgumentOutOfRangeException("All parameters must be positive");
         }
 
-        if (side != "buy" && side != "sell")
-        {
-            throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
-        }
-
-        var minPrice = side == "buy" ? entryPrice : entryPrice * 0.5m;
-        var maxPrice = side == "buy" ? entryPrice * 2m : entryPrice * 1.5m;
+        var minPrice = side == TradeSide.Buy ? entryPrice : entryPrice * 0.5m;
+        var maxPrice = side == TradeSide.Buy ? entryPrice * 2m : entryPrice * 1.5m;
 
         const decimal tolerance = 0.01m;
         const int maxIterations = 100;
@@ -83,7 +78,7 @@ public static class TradeFactory
                 return testPrice;
             }
 
-            if (side == "buy")
+            if (side == TradeSide.Buy)
             {
                 if (netPL < targetNetPLSats)
                 {
@@ -114,7 +109,7 @@ public static class TradeFactory
         decimal quantity,
         decimal entryPrice,
         decimal leverage,
-        string side,
+        TradeSide side,
         decimal currentPrice,
         TradeState state,
         string? id = null,
@@ -141,18 +136,13 @@ public static class TradeFactory
             throw new ArgumentOutOfRangeException(nameof(currentPrice), "Current price must be greater than 0");
         }
 
-        if (side != "buy" && side != "sell")
-        {
-            throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
-        }
-
         var marginInUsd = quantity / leverage;
         var marginInSats = marginInUsd * (SatoshisPerBitcoin / entryPrice);
 
         var maintenanceMarginInSats = marginInSats * 0.05m;
 
         decimal pl;
-        if (side == "buy")
+        if (side == TradeSide.Buy)
         {
             pl = CalculatePLFromActualPrice(quantity, entryPrice, currentPrice);
         }
@@ -177,7 +167,7 @@ public static class TradeFactory
             id = id ?? Guid.NewGuid().ToString(),
             uid = uid,
             type = "futures",
-            side = side,
+            side = side.ToString().ToLower(),
             margin = Math.Floor(marginInSats),
             pl = RoundPL(pl),
             price = entryPrice,
@@ -185,7 +175,7 @@ public static class TradeFactory
             leverage = leverage,
             liquidation = RoundLiquidationPrice(liquidationPrice),
             stoploss = 0m,
-            takeprofit = side == "buy" ? entryPrice * 1.1m : entryPrice * 0.9m,
+            takeprofit = side == TradeSide.Buy ? entryPrice * 1.1m : entryPrice * 0.9m,
             creation_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             open = tradeFlags.Open,
             running = tradeFlags.Running,
@@ -203,7 +193,7 @@ public static class TradeFactory
         decimal quantity,
         decimal entryPrice,
         decimal leverage,
-        string side,
+        TradeSide side,
         decimal lossPercentage,
         TradeState state,
         decimal? marginInSats = null,
@@ -224,11 +214,6 @@ public static class TradeFactory
         if (leverage <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(leverage), "Leverage must be greater than 0");
-        }
-
-        if (side != "buy" && side != "sell")
-        {
-            throw new ArgumentException("Side must be 'buy' or 'sell'", nameof(side));
         }
 
         if (lossPercentage >= 0)
@@ -277,7 +262,7 @@ public static class TradeFactory
             id = id ?? Guid.NewGuid().ToString(),
             uid = uid,
             type = "futures",
-            side = side,
+            side = side.ToString().ToLower(),
             margin = Math.Floor(calculatedMarginInSats),
             pl = RoundPL(pl),
             price = entryPrice,
@@ -285,7 +270,7 @@ public static class TradeFactory
             leverage = leverage,
             liquidation = RoundLiquidationPrice(liquidationPrice),
             stoploss = 0m,
-            takeprofit = side == "buy" ? entryPrice * 1.1m : entryPrice * 0.9m,
+            takeprofit = side == TradeSide.Buy ? entryPrice * 1.1m : entryPrice * 0.9m,
             creation_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             open = tradeFlags.Open,
             running = tradeFlags.Running,
@@ -303,7 +288,7 @@ public static class TradeFactory
         decimal entryPrice,
         decimal quantity,
         decimal marginInSats,
-        string side)
+        TradeSide side)
     {
         if (entryPrice <= 0)
         {
@@ -323,7 +308,7 @@ public static class TradeFactory
         var marginNormalized = marginInSats / (quantity * SatoshisPerBitcoin);
         decimal inverseLiquidationPrice;
 
-        if (string.Equals(side, "buy", StringComparison.OrdinalIgnoreCase))
+        if (side == TradeSide.Buy)
         {
             inverseLiquidationPrice = (1 / entryPrice) + marginNormalized;
         }
