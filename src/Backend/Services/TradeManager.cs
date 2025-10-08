@@ -157,11 +157,13 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
             var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
-            var freeMarginInSats = CalculateFreeMargin(user, openTrades, runningTrades);
+            var allTrades = openTrades.Concat(runningTrades);
+            var tradeMargins = allTrades.Select(x => (x.quantity, x.price, x.maintenance_margin)).ToList();
+            var availableMarginInSats = CalculateAvailableMarginInSats(user.balance, tradeMargins);
 
-            if (freeMarginInSats <= oneUsdInSats)
+            var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
+            if (availableMarginInSats <= oneUsdInSats)
             {
                 return;
             }
@@ -191,6 +193,17 @@ public class TradeManager : ITradeManager
 
             if (exitPriceInUsd >= options.MaxTakeprofitPrice)
             {
+                return;
+            }
+
+            var requiredMarginInSats = (Constants.SatoshisPerBitcoin / quantizedPriceInUsd) * options.Quantity / options.Leverage;
+            if (requiredMarginInSats > availableMarginInSats)
+            {
+                logger?.LogWarning(
+                    "Insufficient margin for trade: required {RequiredMargin} sats, available {AvailableMargin} sats at entry price {EntryPrice}$",
+                    requiredMarginInSats,
+                    availableMarginInSats,
+                    quantizedPriceInUsd);
                 return;
             }
 
@@ -224,13 +237,11 @@ public class TradeManager : ITradeManager
         }
     }
 
-    private static decimal CalculateFreeMargin(UserModel user, IEnumerable<FuturesTradeModel> openTrades, IEnumerable<FuturesTradeModel> runningTrades)
+    private static decimal CalculateAvailableMarginInSats(decimal balanceInSats, IReadOnlyList<(decimal QuantityInUsd, decimal EntryPriceInUsd, decimal MaintenanceMarginInSats)> tradeMargins)
     {
-        var btcInSat = Constants.SatoshisPerBitcoin;
-        var realMargin = Math.Round(
-            openTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum() +
-            runningTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum());
-        return user.balance - realMargin;
+        var isolatedMarginInSats = Math.Round(
+            tradeMargins.Select(x => ((Constants.SatoshisPerBitcoin / x.EntryPriceInUsd) * x.QuantityInUsd) + x.MaintenanceMarginInSats).Sum());
+        return balanceInSats - isolatedMarginInSats;
     }
 
     private static decimal GetFeeRateFromTier(decimal feeTier)

@@ -210,6 +210,108 @@ public class ProcessTradeExecutionTests
     }
 
     [Fact]
+    public async Task ProcessTradeExecution_WithInsufficientMarginForSpecificTrade_ShouldReturn()
+    {
+        // Arrange - User has some margin but not enough for the specific trade
+        var userWithMediumBalance = new UserModel
+        {
+            uid = "test-uid",
+            role = "user",
+            balance = 30000, // Enough to pass oneUsdInSats check but not enough for the trade
+            username = "testuser",
+            synthetic_usd_balance = 5000m,
+            fee_tier = 0
+        };
+
+        var emptyRunningTrades = new List<FuturesTradeModel>();
+        var emptyOpenTrades = new List<FuturesTradeModel>();
+
+        _mockApiService.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyRunningTrades);
+        _mockApiService.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyOpenTrades);
+
+        // Use options that require high margin
+        var highQuantityOptions = new LnMarketsOptions
+        {
+            Key = "test-key",
+            Passphrase = "test-passphrase", 
+            Secret = "test-secret",
+            Factor = 1000,
+            MaxRunningTrades = 5,
+            Takeprofit = 2000,
+            MaxTakeprofitPrice = 100000,
+            Leverage = 1, // Low leverage = high margin requirement
+            Quantity = 1000 // High quantity = high margin requirement
+        };
+
+        // Act
+        await CallProcessTradeExecution(_mockApiService.Object, highQuantityOptions, _defaultPriceData, userWithMediumBalance, _mockLogger.Object);
+
+        // Assert
+        // oneUsdInSats = 100,000,000 / 50000 = 2000
+        // availableMargin = 30000 > 2000 (passes first check)
+        // requiredMargin = (100,000,000 / 50000) * 1000 / 1 = 2,000,000
+        // 2,000,000 > 30000 (fails second check)
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessTradeExecution_WithSufficientMarginForSpecificTrade_ShouldCreateOrder()
+    {
+        // Arrange - User has enough margin for the specific trade
+        var userWithHighBalance = new UserModel
+        {
+            uid = "test-uid",
+            role = "user", 
+            balance = 5000000, // 0.05 BTC in satoshis - enough for high margin trade
+            username = "testuser",
+            synthetic_usd_balance = 5000m,
+            fee_tier = 0
+        };
+
+        var emptyRunningTrades = new List<FuturesTradeModel>();
+        var emptyOpenTrades = new List<FuturesTradeModel>();
+
+        _mockApiService.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyRunningTrades);
+        _mockApiService.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyOpenTrades);
+        _mockApiService.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+            .ReturnsAsync(true);
+
+        var highQuantityOptions = new LnMarketsOptions
+        {
+            Key = "test-key",
+            Passphrase = "test-passphrase",
+            Secret = "test-secret", 
+            Factor = 1000,
+            MaxRunningTrades = 5,
+            Takeprofit = 2000,
+            MaxTakeprofitPrice = 100000,
+            Leverage = 1, // Low leverage = high margin requirement
+            Quantity = 1000 // High quantity = high margin requirement
+        };
+
+        // Act
+        await CallProcessTradeExecution(_mockApiService.Object, highQuantityOptions, _defaultPriceData, userWithHighBalance, _mockLogger.Object);
+
+        // Assert
+        // oneUsdInSats = 100,000,000 / 50000 = 2000
+        // availableMargin = 5,000,000 > 2000 (passes first check)
+        // requiredMargin = (100,000,000 / 50000) * 1000 / 1 = 2,000,000  
+        // 2,000,000 < 5,000,000 (passes second check)
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(
+            highQuantityOptions.Key,
+            highQuantityOptions.Passphrase,
+            highQuantityOptions.Secret,
+            50000m, // quantizedPriceInUsd
+            52000m, // exitPriceInUsd (50000 + 2000)
+            highQuantityOptions.Leverage,
+            highQuantityOptions.Quantity), Times.Once);
+    }
+
+    [Fact]
     public async Task ProcessTradeExecution_WithTakeprofitExceedsMax_ShouldReturn()
     {
         // Arrange
@@ -359,6 +461,55 @@ public class ProcessTradeExecutionTests
 
         // Assert
         _mockApiService.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessTradeExecution_MarginCalculation_ShouldUseQuantizedPrice()
+    {
+        // Arrange - Create scenario where market price differs from quantized price
+        var priceData = new LastPriceData
+        {
+            LastPrice = 50750m, // Market price that will be quantized down to 50000
+            LastTickDirection = "up", 
+            Time = "1640995200"
+        };
+
+        var userWithLimitedBalance = new UserModel
+        {
+            uid = "test-uid",
+            role = "user",
+            balance = 50000, // Limited balance to make margin calculations matter
+            username = "testuser",
+            synthetic_usd_balance = 5000m,
+            fee_tier = 0
+        };
+
+        var emptyRunningTrades = new List<FuturesTradeModel>();
+        var emptyOpenTrades = new List<FuturesTradeModel>();
+
+        _mockApiService.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyRunningTrades);
+        _mockApiService.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyOpenTrades);
+        _mockApiService.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await CallProcessTradeExecution(_mockApiService.Object, _defaultOptions, priceData, userWithLimitedBalance, _mockLogger.Object);
+
+        // Assert
+        // Verify that CreateLimitBuyOrder was called with quantized price (50000), not market price (50750)
+        // quantizedPrice = Math.Floor(50750 / 1000) * 1000 = 50000
+        // requiredMargin = (100,000,000 / 50000) * 1 / 2 = 1000 sats
+        // availableMargin = 50000 > 1000, so order should be created
+        _mockApiService.Verify(x => x.CreateLimitBuyOrder(
+            _defaultOptions.Key,
+            _defaultOptions.Passphrase, 
+            _defaultOptions.Secret,
+            50000m, // Should use quantized price for entry, not market price
+            52000m, // 50000 + 2000 takeprofit
+            _defaultOptions.Leverage,
+            _defaultOptions.Quantity), Times.Once);
     }
 
     [Theory]
