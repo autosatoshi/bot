@@ -194,8 +194,10 @@ public class TradeManager : ITradeManager
 
                 var targetNetPLInSats = options.TargetNetPLInSats.Value;
                 var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
-                logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", adjustedExitPriceInUsd, targetNetPLInSats);
-                return Math.Round(adjustedExitPriceInUsd, 0, MidpointRounding.AwayFromZero);
+                var roundedExitPriceInUsd = Math.Ceiling(adjustedExitPriceInUsd * 2) / 2; // Round up to nearest 0.5 for LN Markets compatibility
+                logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", roundedExitPriceInUsd, targetNetPLInSats);
+
+                return roundedExitPriceInUsd;
             }))();
 
             if (exitPriceInUsd >= options.MaxTakeprofitPrice)
