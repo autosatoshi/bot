@@ -54,55 +54,72 @@ public static class TradeFactory
         return 1 / inverseCurrentPriceInUsd;
     }
 
-    public static decimal CalculateExitPriceForTargetNetPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal leverage, decimal feeRate, decimal targetNetPLSats, TradeSide side)
+    /// <summary>
+    /// Calculates the exact exit price needed to achieve a target net P&L after fees using direct algebraic solution.
+    ///
+    /// MATHEMATICAL IMPLEMENTATION:
+    /// This method solves the circular dependency between exit price and closing fees by deriving an exact formula
+    /// from the net P&L equation: target = rawPL - openingFee - closingFee
+    ///
+    /// The challenge: closingFee = (quantity/exitPrice) * feeRate * SATS_PER_BTC depends on the unknown exitPrice
+    ///
+    /// Solution: Algebraically rearrange the complete equation to solve for exitPrice directly.
+    ///
+    /// For Buy trades:  exitPrice = (1 + feeRate) / (((1 - feeRate) / entryPrice) - (target / (quantity * SATS_PER_BTC)))
+    /// For Sell trades: exitPrice = (1 - feeRate) / (((1 + feeRate) / entryPrice) + (target / (quantity * SATS_PER_BTC)))
+    ///
+    /// The fees are embedded in the formula:
+    /// - Opening fee: (1 ± feeRate) terms in denominator
+    /// - Closing fee: (1 ± feeRate) terms in numerator
+    /// - Raw P&L: difference between entry and exit price inverses
+    ///
+    /// Result: Single exact calculation with no approximation needed.
+    /// </summary>
+    /// <param name="quantityInUsd">The trade size in USD.</param>
+    /// <param name="entryPriceInUsd">The entry price in USD per Bitcoin.</param>
+    /// <param name="leverage">The leverage multiplier for the trade.</param>
+    /// <param name="feeRate">The trading fee rate as a decimal (e.g., 0.001 for 0.1%).</param>
+    /// <param name="targetNetPLInSats">The target net profit/loss in satoshis AFTER all fees.</param>
+    /// <param name="side">The trade side (Buy or Sell).</param>
+    /// <returns>The exact exit price in USD needed to achieve the target net P&L.</returns>
+    public static decimal CalculateExitPriceForTargetNetPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal leverage, decimal feeRate, decimal targetNetPLInSats, TradeSide side)
     {
         if (quantityInUsd <= 0 || entryPriceInUsd <= 0 || leverage <= 0 || feeRate < 0)
         {
             throw new ArgumentOutOfRangeException("All parameters must be positive");
         }
 
-        var minPriceInUsd = side == TradeSide.Buy ? entryPriceInUsd : entryPriceInUsd * 0.5m;
-        var maxPriceInUsd = side == TradeSide.Buy ? entryPriceInUsd * 2m : entryPriceInUsd * 1.5m;
+        var targetNormalizedInUsd = targetNetPLInSats / (quantityInUsd * SatoshisPerBitcoin);
+        var entryPriceInverseInUsd = 1m / entryPriceInUsd;
 
-        const decimal tolerance = 0.01m;
-        const int maxIterations = 100;
-
-        for (int i = 0; i < maxIterations; i++)
+        decimal exitPriceInUsd;
+        if (side == TradeSide.Buy)
         {
-            var testPriceInUsd = (minPriceInUsd + maxPriceInUsd) / 2m;
-            var trade = CreateTrade(quantityInUsd, entryPriceInUsd, leverage, side, testPriceInUsd, TradeState.Closed, feeRate: feeRate);
-            var netPlInSats = trade.pl - trade.opening_fee - trade.closing_fee;
-
-            if (Math.Abs(netPlInSats - targetNetPLSats) < tolerance)
+            var denominatorInUsd = ((1m - feeRate) * entryPriceInverseInUsd) - targetNormalizedInUsd;
+            if (denominatorInUsd <= 0)
             {
-                return testPriceInUsd;
+                throw new ArgumentException("Target net P&L is too high or fees are too large, resulting in invalid exit price calculation");
             }
 
-            if (side == TradeSide.Buy)
+            exitPriceInUsd = (1m + feeRate) / denominatorInUsd;
+        }
+        else
+        {
+            var denominatorInUsd = ((1m + feeRate) * entryPriceInverseInUsd) + targetNormalizedInUsd;
+            if (denominatorInUsd <= 0)
             {
-                if (netPlInSats < targetNetPLSats)
-                {
-                    minPriceInUsd = testPriceInUsd;
-                }
-                else
-                {
-                    maxPriceInUsd = testPriceInUsd;
-                }
+                throw new ArgumentException("Target net P&L is too high or fees are too large, resulting in invalid exit price calculation");
             }
-            else
-            {
-                if (netPlInSats < targetNetPLSats)
-                {
-                    maxPriceInUsd = testPriceInUsd;
-                }
-                else
-                {
-                    minPriceInUsd = testPriceInUsd;
-                }
-            }
+
+            exitPriceInUsd = (1m - feeRate) / denominatorInUsd;
         }
 
-        return (minPriceInUsd + maxPriceInUsd) / 2m;
+        if (exitPriceInUsd <= 0)
+        {
+            throw new ArgumentException("Calculated exit price is non-positive, indicating invalid parameters or target");
+        }
+
+        return exitPriceInUsd;
     }
 
     public static FuturesTradeModel CreateTrade(
