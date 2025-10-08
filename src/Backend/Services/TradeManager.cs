@@ -148,12 +148,18 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var quantizedPriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
             var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
-            var currentTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
-
-            if (currentTrade != null || runningTrades.Count() >= options.MaxRunningTrades)
+            if (runningTrades.Count() >= options.MaxRunningTrades)
             {
+                logger?.LogDebug("Maximum number of running trades has been reached ({MaxRunningTrades})", options.MaxRunningTrades);
+                return;
+            }
+
+            var quantizedPriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
+            var runningTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
+            if (runningTrade != null)
+            {
+                logger?.LogDebug("A running trade with the same price already exists ({Price}$)", quantizedPriceInUsd);
                 return;
             }
 
@@ -165,13 +171,14 @@ public class TradeManager : ITradeManager
             var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
             if (availableMarginInSats <= oneUsdInSats)
             {
+                logger?.LogDebug("No available margin");
                 return;
             }
 
             var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
             if (openTrade != null)
             {
-                logger?.LogInformation("Skipping trade execution for price {Price}$ because an open trade with the same price already exists.", quantizedPriceInUsd);
+                logger?.LogDebug("An open trade with the same price already exists ({Price}$)", quantizedPriceInUsd);
                 return;
             }
 
@@ -183,27 +190,24 @@ public class TradeManager : ITradeManager
                 }
 
                 var feeRate = GetFeeRateFromTier(user.fee_tier);
-                logger?.LogInformation("User fee tier: {FeeTier}, mapped to fee rate: {FeeRate:P}", user.fee_tier, feeRate);
+                logger?.LogDebug("User fee tier {FeeTier} mapped to fee rate {FeeRate:P}", user.fee_tier, feeRate);
 
                 var targetNetPLInSats = options.TargetNetPLInSats.Value;
                 var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
-                logger?.LogInformation("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", adjustedExitPriceInUsd, targetNetPLInSats);
+                logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", adjustedExitPriceInUsd, targetNetPLInSats);
                 return Math.Round(adjustedExitPriceInUsd, 0, MidpointRounding.AwayFromZero);
             }))();
 
             if (exitPriceInUsd >= options.MaxTakeprofitPrice)
             {
+                logger?.LogDebug("Exit price {ExitPrice}$ exceeds maximum take profit price {MaximumPrice}$", exitPriceInUsd, options.MaxTakeprofitPrice);
                 return;
             }
 
             var requiredMarginInSats = (Constants.SatoshisPerBitcoin / quantizedPriceInUsd) * options.Quantity / options.Leverage;
             if (requiredMarginInSats > availableMarginInSats)
             {
-                logger?.LogWarning(
-                    "Insufficient margin for trade: required {RequiredMargin} sats, available {AvailableMargin} sats at entry price {EntryPrice}$",
-                    requiredMarginInSats,
-                    availableMarginInSats,
-                    quantizedPriceInUsd);
+                logger?.LogWarning("Insufficient margin: required {RequiredMargin} sats | available {AvailableMargin} sats", requiredMarginInSats, availableMarginInSats);
                 return;
             }
 
