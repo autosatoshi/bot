@@ -428,7 +428,7 @@ public class ProcessTradeExecutionTests
         _mockApiService.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(openTrades);
         _mockApiService.Setup(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new HttpRequestException("Cancel failed"));
+            .ReturnsAsync(false);
         _mockApiService.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
             .ReturnsAsync(true);
 

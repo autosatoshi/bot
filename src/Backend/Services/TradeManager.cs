@@ -215,27 +215,19 @@ public class TradeManager : ITradeManager
 
             foreach (var oldTrade in openTrades)
             {
-                try
+                if (!await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id))
                 {
-                    _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
+                    logger?.LogWarning("Failed to cancel trade {TradeId}", oldTrade.id);
                 }
             }
 
-            if (await apiService.CreateLimitBuyOrder(
-                options.Key,
-                options.Passphrase,
-                options.Secret,
-                quantizedPriceInUsd,
-                exitPriceInUsd,
-                options.Leverage,
-                options.Quantity))
+            if (!await apiService.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity))
             {
-                logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}', leverage: '{}', quantity: '{}']", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
+                logger?.LogError("Failed to create limit buy order:\n\t[price: '{Price}', takeprofit: '{TakeProfit}', leverage: '{Leverage}', quantity: '{Quantity}']", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
+                return;
             }
+
+            logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{Price}', takeprofit: '{TakeProfit}', leverage: '{Leverage}', quantity: '{Quantity}']", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
         }
         catch (Exception ex)
         {
