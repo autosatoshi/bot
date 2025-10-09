@@ -182,13 +182,13 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var exitPriceInUsd = ((Func<decimal>)(() =>
+            decimal exitPriceInUsd;
+            if (!options.TargetNetPLInSats.HasValue)
             {
-                if (!options.TargetNetPLInSats.HasValue)
-                {
-                    return quantizedPriceInUsd + options.Takeprofit;
-                }
-
+                exitPriceInUsd = quantizedPriceInUsd + options.Takeprofit;
+            }
+            else
+            {
                 var feeRate = GetFeeRateFromTier(user.fee_tier);
                 logger?.LogDebug("User fee tier {FeeTier} mapped to fee rate {FeeRate:P}", user.fee_tier, feeRate);
 
@@ -197,8 +197,8 @@ public class TradeManager : ITradeManager
                 var roundedExitPriceInUsd = Math.Ceiling(adjustedExitPriceInUsd * 2) / 2; // Round up to nearest 0.5 for LN Markets compatibility
                 logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", roundedExitPriceInUsd, targetNetPLInSats);
 
-                return roundedExitPriceInUsd;
-            }))();
+                exitPriceInUsd = roundedExitPriceInUsd;
+            }
 
             if (exitPriceInUsd >= options.MaxTakeprofitPrice)
             {
