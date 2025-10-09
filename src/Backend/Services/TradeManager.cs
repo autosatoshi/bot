@@ -165,8 +165,8 @@ public class TradeManager : ITradeManager
 
             var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
             var allTrades = openTrades.Concat(runningTrades);
-            var tradeMargins = allTrades.Select(x => (x.quantity, x.price, x.maintenance_margin)).ToList();
-            var availableMarginInSats = CalculateAvailableMarginInSats(user.balance, tradeMargins);
+            var isolatedMarginInSats = Math.Round(allTrades.Select(x => x.margin + x.maintenance_margin).Sum());
+            var availableMarginInSats = user.balance - isolatedMarginInSats;
 
             var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
             if (availableMarginInSats <= oneUsdInSats)
@@ -241,13 +241,6 @@ public class TradeManager : ITradeManager
         {
             logger?.LogError(ex, "Error during trade execution");
         }
-    }
-
-    private static decimal CalculateAvailableMarginInSats(decimal balanceInSats, IReadOnlyList<(decimal QuantityInUsd, decimal EntryPriceInUsd, decimal MaintenanceMarginInSats)> tradeMargins)
-    {
-        var isolatedMarginInSats = Math.Round(
-            tradeMargins.Select(x => ((Constants.SatoshisPerBitcoin / x.EntryPriceInUsd) * x.QuantityInUsd) + x.MaintenanceMarginInSats).Sum());
-        return balanceInSats - isolatedMarginInSats;
     }
 
     private static decimal GetFeeRateFromTier(decimal feeTier)
