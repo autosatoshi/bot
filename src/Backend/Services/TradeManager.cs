@@ -163,9 +163,8 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
-            var allTrades = openTrades.Concat(runningTrades);
-            var isolatedMarginInSats = Math.Round(allTrades.Select(x => x.margin + x.maintenance_margin).Sum());
+            // Only count running trade margins - open trades will be canceled and their margin freed
+            var isolatedMarginInSats = Math.Round(runningTrades.Select(x => x.margin + x.maintenance_margin).Sum());
             var availableMarginInSats = user.balance - isolatedMarginInSats;
 
             var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
@@ -175,6 +174,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
+            var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
             var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
             if (openTrade != null)
             {
