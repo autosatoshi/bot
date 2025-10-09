@@ -50,7 +50,7 @@ public class TradeManager : ITradeManager
 
     private static async Task HandlePriceUpdate(LastPriceData data, ILnMarketsApiService client, LnMarketsOptions options, ILogger? logger = null)
     {
-        logger?.LogInformation("Handling price update: {}$", data.LastPrice);
+        logger?.LogInformation("Handling price update: {Price}$", data.LastPrice);
 
         if (options.Pause)
         {
@@ -223,11 +223,11 @@ public class TradeManager : ITradeManager
 
             if (!await apiService.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity))
             {
-                logger?.LogError("Failed to create limit buy order:\n\t[price: '{Price}', takeprofit: '{TakeProfit}', leverage: '{Leverage}', quantity: '{Quantity}']", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
+                logger?.LogError("Failed to create limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
                 return;
             }
 
-            logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{Price}', takeprofit: '{TakeProfit}', leverage: '{Leverage}', quantity: '{Quantity}']", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
+            logger?.LogInformation("Successfully created limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
         }
         catch (Exception ex)
         {
