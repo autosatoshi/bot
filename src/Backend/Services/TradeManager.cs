@@ -149,7 +149,7 @@ public class TradeManager : ITradeManager
             }
 
             var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
-            if (runningTrades.Count() >= options.MaxRunningTrades)
+            if (runningTrades.Count >= options.MaxRunningTrades)
             {
                 logger?.LogDebug("Maximum number of running trades has been reached ({MaxRunningTrades})", options.MaxRunningTrades);
                 return;

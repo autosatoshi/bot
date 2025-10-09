@@ -4,9 +4,9 @@ namespace AutoBot.Services;
 
 public interface ILnMarketsApiService
 {
-    Task<IEnumerable<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret);
+    Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret);
 
-    Task<IEnumerable<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret);
+    Task<IReadOnlyList<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret);
 
     Task<UserModel> GetUser(string key, string passphrase, string secret);
 
