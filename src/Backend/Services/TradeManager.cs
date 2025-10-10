@@ -50,7 +50,7 @@ public class TradeManager : ITradeManager
 
     private static async Task HandlePriceUpdate(LastPriceData data, ILnMarketsApiService client, LnMarketsOptions options, ILogger? logger = null)
     {
-        logger?.LogInformation("Handling price update: {}$", data.LastPrice);
+        logger?.LogInformation("Handling price update: {Price}$", data.LastPrice);
 
         if (options.Pause)
         {
@@ -148,51 +148,86 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var tradePrice = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
             var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
-            var currentTrade = runningTrades.FirstOrDefault(x => x.price == tradePrice);
-
-            if (currentTrade != null || runningTrades.Count() >= options.MaxRunningTrades)
+            if (runningTrades.Count >= options.MaxRunningTrades)
             {
+                logger?.LogDebug("Maximum number of running trades has been reached ({MaxRunningTrades})", options.MaxRunningTrades);
                 return;
             }
+
+            var quantizedPriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
+            var runningTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
+            if (runningTrade != null)
+            {
+                logger?.LogDebug("A running trade with the same price already exists ({Price}$)", quantizedPriceInUsd);
+                return;
+            }
+
+            // Only count running trade margins - open trades will be canceled and their margin freed
+            var isolatedMarginInSats = Math.Round(runningTrades.Select(x => x.margin + x.maintenance_margin).Sum());
+            var availableMarginInSats = user.balance - isolatedMarginInSats;
 
             var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
-            var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
-            var freeMargin = CalculateFreeMargin(user, openTrades, runningTrades);
-
-            if (freeMargin <= oneUsdInSats)
+            if (availableMarginInSats <= oneUsdInSats)
             {
+                logger?.LogDebug("No available margin");
                 return;
             }
 
-            var openTrade = openTrades.FirstOrDefault(x => x.price == tradePrice);
-            if (openTrade is null && tradePrice + options.Takeprofit < options.MaxTakeprofitPrice)
+            var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
+            var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
+            if (openTrade != null)
             {
-                foreach (var oldTrade in openTrades)
-                {
-                    try
-                    {
-                        _ = await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.LogError(ex, "Failed to cancel trade {TradeId}", oldTrade.id);
-                    }
-                }
+                logger?.LogDebug("An open trade with the same price already exists ({Price}$)", quantizedPriceInUsd);
+                return;
+            }
 
-                if (await apiService.CreateLimitBuyOrder(
-                    options.Key,
-                    options.Passphrase,
-                    options.Secret,
-                    tradePrice,
-                    tradePrice + options.Takeprofit,
-                    options.Leverage,
-                    options.Quantity))
+            decimal exitPriceInUsd;
+            if (!options.TargetNetPLInSats.HasValue)
+            {
+                exitPriceInUsd = quantizedPriceInUsd + options.Takeprofit;
+            }
+            else
+            {
+                var feeRate = GetFeeRateFromTier(user.fee_tier);
+                logger?.LogDebug("User fee tier {FeeTier} mapped to fee rate {FeeRate:P}", user.fee_tier, feeRate);
+
+                var targetNetPLInSats = options.TargetNetPLInSats.Value;
+                var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
+                var roundedExitPriceInUsd = Math.Ceiling(adjustedExitPriceInUsd * 2) / 2; // Round up to nearest 0.5 for LN Markets compatibility
+                logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", roundedExitPriceInUsd, targetNetPLInSats);
+
+                exitPriceInUsd = roundedExitPriceInUsd;
+            }
+
+            if (exitPriceInUsd >= options.MaxTakeprofitPrice)
+            {
+                logger?.LogDebug("Exit price {ExitPrice}$ exceeds maximum take profit price {MaximumPrice}$", exitPriceInUsd, options.MaxTakeprofitPrice);
+                return;
+            }
+
+            var requiredMarginInSats = (Constants.SatoshisPerBitcoin / quantizedPriceInUsd) * options.Quantity / options.Leverage;
+            if (requiredMarginInSats > availableMarginInSats)
+            {
+                logger?.LogWarning("Insufficient margin: required {RequiredMargin} sats | available {AvailableMargin} sats", requiredMarginInSats, availableMarginInSats);
+                return;
+            }
+
+            foreach (var oldTrade in openTrades)
+            {
+                if (!await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id))
                 {
-                    logger?.LogInformation("Successfully created limit buy order:\n\t[price: '{}', takeprofit: '{}', leverage: '{}', quantity: '{}']", tradePrice, tradePrice + options.Takeprofit, options.Leverage, options.Quantity);
+                    logger?.LogWarning("Failed to cancel trade {TradeId}", oldTrade.id);
                 }
             }
+
+            if (!await apiService.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity))
+            {
+                logger?.LogError("Failed to create limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
+                return;
+            }
+
+            logger?.LogInformation("Successfully created limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
         }
         catch (Exception ex)
         {
@@ -200,12 +235,21 @@ public class TradeManager : ITradeManager
         }
     }
 
-    private static decimal CalculateFreeMargin(UserModel user, IEnumerable<FuturesTradeModel> openTrades, IEnumerable<FuturesTradeModel> runningTrades)
+    private static decimal GetFeeRateFromTier(decimal feeTier)
     {
-        var btcInSat = Constants.SatoshisPerBitcoin;
-        var realMargin = Math.Round(
-            openTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum() +
-            runningTrades.Select(x => ((btcInSat / x.price) * x.quantity) + x.maintenance_margin).Sum());
-        return user.balance - realMargin;
+        // LN Markets fee tiers (based on 30-day cumulative volume):
+        // API returns 0-indexed tiers:
+        // 0 = Tier 1: 0 volume → 0.1% fee
+        // 1 = Tier 2: > $250k → 0.08% fee
+        // 2 = Tier 3: > $1,000k → 0.07% fee
+        // 3 = Tier 4: > $5,000k → 0.06% fee
+        return feeTier switch
+        {
+            0 => 0.001m,   // Tier 1: 0.1%
+            1 => 0.0008m,  // Tier 2: 0.08%
+            2 => 0.0007m,  // Tier 3: 0.07%
+            3 => 0.0006m,  // Tier 4: 0.06%
+            _ => 0.001m,   // Default to highest fee rate for safety
+        };
     }
 }
