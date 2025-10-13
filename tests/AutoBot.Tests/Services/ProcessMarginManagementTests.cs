@@ -524,4 +524,60 @@ public class ProcessMarginManagementTests
         _defaultUser.balance.Should().Be(1000000); // No margin added - all trades filtered out by leverage check
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
+
+    [Fact]
+    public async Task ProcessMarginManagement_WithMaxMarginExceeded_ShouldSkipFirstProcessSecond()
+    {
+        // Arrange
+        var trade1 = TradeFactory.CreateLosingTrade(
+            quantityInUsd: 1m, // Small quantity = low max margin
+            entryPriceInUsd: 49000m,
+            leverage: 2m,
+            side: TradeSide.Buy,
+            lossPercentage: -60m,
+            TradeState.Running,
+            marginInSats: 1000m,
+            id: "trade-1");
+
+        var trade2 = TradeFactory.CreateLosingTrade(
+            quantityInUsd: 100m, // Large quantity = high max margin
+            entryPriceInUsd: 49000m,
+            leverage: 2m,
+            side: TradeSide.Buy,
+            lossPercentage: -60m,
+            TradeState.Running,
+            marginInSats: 1000m,
+            id: "trade-2");
+
+        var runningTrades = new List<FuturesTradeModel> { trade1, trade2 };
+        
+        _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
+            .ReturnsAsync(runningTrades);
+        _mockApiService.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(true);
+        _mockApiService.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
+
+        // Assert
+        const int expectedMarginPerTrade = 20000;
+        const long expectedFinalBalance = 1000000 - expectedMarginPerTrade; // Only trade-2 processed
+        const decimal expectedFinalUsdBalance = 5000m;
+        
+        // trade-1: max margin = (100,000,000 / 49,000) * 1 = ~2,041 sats
+        // oneMarginCallInSats + trade.margin = 20,000 + 1,000 = 21,000 > 2,041 (exceeds max margin)
+        _mockApiService.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", It.IsAny<int>()), Times.Never);
+        
+        // trade-2: max margin = (100,000,000 / 49,000) * 100 = ~204,081 sats  
+        // oneMarginCallInSats + trade.margin = 20,000 + 1,000 = 21,000 < 204,081 (within max margin)
+        _mockApiService.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", expectedMarginPerTrade), Times.Once);
+        
+        _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 10), Times.Once); // 1 trade * 10 USD
+        
+        // Assert balance updates
+        _defaultUser.balance.Should().Be(expectedFinalBalance); // Balance reduced by margin for 1 trade only
+        _defaultUser.synthetic_usd_balance.Should().Be(expectedFinalUsdBalance); // USD balance unchanged
+    }
 }
