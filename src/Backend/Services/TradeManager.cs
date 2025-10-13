@@ -90,12 +90,12 @@ public class TradeManager : ITradeManager
             }
 
             var oneMarginCallInSats = decimal.ToInt64(Math.Round(oneUsdInSats * options.AddMarginInUsd, MidpointRounding.AwayFromZero));
-            var totalMarginCallInSats = oneMarginCallInSats * marginCallTrades.Count;
-            if (totalMarginCallInSats > user.balance)
+            if (oneMarginCallInSats * marginCallTrades.Count > user.balance)
             {
                 logger?.LogWarning("Total amount for margin calls exceeds the available balance. Defaulting to FIFO margin call execution.");
             }
 
+            var totalAddedMarginInSats = 0m;
             var totalAddedMarginInUsd = 0m;
             foreach (var trade in marginCallTrades)
             {
@@ -114,13 +114,14 @@ public class TradeManager : ITradeManager
 
                 if (!await client.AddMarginInSats(options.Key, options.Passphrase, options.Secret, trade.id, oneMarginCallInSats))
                 {
-                    logger?.LogError("Failed to add margin {} sats to running trade {}", oneMarginCallInSats, trade.id);
+                    logger?.LogError("Failed to add margin {Margin} sats to running trade {Id}", oneMarginCallInSats, trade.id);
                     continue;
                 }
 
                 user.balance -= oneMarginCallInSats;
+                totalAddedMarginInSats += oneMarginCallInSats;
                 totalAddedMarginInUsd += options.AddMarginInUsd;
-                logger?.LogInformation("Successfully added margin {} sats to running trade {}", oneMarginCallInSats, trade.id);
+                logger?.LogInformation("Successfully added margin {Margin} sats to running trade {Id}", oneMarginCallInSats, trade.id);
             }
 
             if (totalAddedMarginInUsd <= 0)
@@ -130,17 +131,19 @@ public class TradeManager : ITradeManager
 
             if (user.synthetic_usd_balance < totalAddedMarginInUsd)
             {
-                logger?.LogDebug("No enough synthetic usd balance available for swap: required {Amount}$ | available {Available}$", user.synthetic_usd_balance, totalAddedMarginInUsd);
+                logger?.LogDebug("No enough synthetic usd balance available for swap: required {Amount}$ | available {Available}$", totalAddedMarginInUsd, user.synthetic_usd_balance);
                 return;
             }
 
             if (!await client.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)totalAddedMarginInUsd))
             {
-                logger?.LogError("Failed to swap {}$ to btc", totalAddedMarginInUsd);
+                logger?.LogError("Failed to swap {Amount}$ to btc", totalAddedMarginInUsd);
                 return;
             }
 
-            logger?.LogInformation("Successfully swapped {}$ to btc", totalAddedMarginInUsd);
+            user.balance += totalAddedMarginInSats;
+            user.synthetic_usd_balance -= totalAddedMarginInUsd;
+            logger?.LogInformation("Successfully swapped {Amount}$ to btc", totalAddedMarginInUsd);
         }
         catch (Exception ex)
         {
