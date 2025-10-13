@@ -47,7 +47,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         var mockResponse = new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -86,7 +86,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         var mockResponse = new HttpResponseMessage(HttpStatusCode.BadRequest)
         {
@@ -116,7 +116,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         _mockHttpMessageHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -141,7 +141,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         HttpRequestMessage? capturedRequest = null;
 

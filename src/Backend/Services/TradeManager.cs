@@ -77,7 +77,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var oneUsdInSats = Math.Round(Constants.SatoshisPerBitcoin / data.LastPrice);
+            var oneUsdInSats = (long)Math.Round(Constants.SatoshisPerBitcoin / data.LastPrice);
             var marginCallTrades = runningTrades
                 .Where(x => x.leverage > 1) // Skip trades with 1x leverage
                 .Where(x => x.margin > 0) // Skip trades with invalid margin to prevent division by zero
@@ -89,7 +89,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var oneMarginCallInSats = oneUsdInSats * options.AddMarginInUsd;
+            var oneMarginCallInSats = (long)(oneUsdInSats * options.AddMarginInUsd);
             var totalMarginCallInSats = oneMarginCallInSats * marginCallTrades.Count;
             if (totalMarginCallInSats > user.balance)
             {
@@ -99,7 +99,7 @@ public class TradeManager : ITradeManager
             var totalAddedMarginInUsd = 0m;
             foreach (var trade in marginCallTrades)
             {
-                var maxMarginInSats = (Constants.SatoshisPerBitcoin / trade.price) * trade.quantity;
+                var maxMarginInSats = (long)((Constants.SatoshisPerBitcoin / trade.price) * trade.quantity);
                 if (oneMarginCallInSats + trade.margin > maxMarginInSats)
                 {
                     logger?.LogWarning("Margin call of {MarginCall} sats would exceed maximum margin of {MaxMargin} sats for trade {Id}", oneMarginCallInSats, maxMarginInSats, trade.id);
@@ -112,7 +112,7 @@ public class TradeManager : ITradeManager
                     continue;
                 }
 
-                if (!await client.AddMarginInSats(options.Key, options.Passphrase, options.Secret, trade.id, (int)oneMarginCallInSats))
+                if (!await client.AddMarginInSats(options.Key, options.Passphrase, options.Secret, trade.id, oneMarginCallInSats))
                 {
                     logger?.LogError("Failed to add margin {} sats to running trade {}", oneMarginCallInSats, trade.id);
                     continue;

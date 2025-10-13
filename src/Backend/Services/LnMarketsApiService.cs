@@ -19,7 +19,7 @@ public class LnMarketsApiService : ILnMarketsApiService
         _logger = logger;
     }
 
-    public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, int amountInSats)
+    public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, long amountInSats)
     {
         var method = "POST";
         var path = "/v2/futures/add-margin";
