@@ -160,7 +160,7 @@ public class ProcessMarginManagementTests
         var runningTrade = TradeFactory.CreateLosingTrade(
             quantityInUsd: 1m,
             entryPriceInUsd: 49000m,
-            leverage: 1m,
+            leverage: 2m,
             side: TradeSide.Buy,
             lossPercentage: -10m,
             TradeState.Running,
@@ -194,7 +194,7 @@ public class ProcessMarginManagementTests
         var runningTrade = TradeFactory.CreateLosingTrade(
             quantityInUsd: 1m,
             entryPriceInUsd: 49000m,
-            leverage: 1m,
+            leverage: 2m,
             side: TradeSide.Buy,
             lossPercentage: -10m,
             TradeState.Running,
