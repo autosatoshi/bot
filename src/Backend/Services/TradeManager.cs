@@ -148,13 +148,13 @@ public class TradeManager : ITradeManager
         }
     }
 
-    private static async Task ProcessTradeExecution(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData messageData, UserModel user, ILogger? logger = null)
+    private static async Task ProcessTradeExecution(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData data, UserModel user, ILogger? logger = null)
     {
         try
         {
-            if (messageData.LastPrice <= 0)
+            if (data.LastPrice <= 0)
             {
-                logger?.LogWarning("Invalid last price: {Price}", messageData.LastPrice);
+                logger?.LogWarning("Invalid last price: {Price}", data.LastPrice);
                 return;
             }
 
@@ -165,7 +165,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var quantizedPriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
+            var quantizedPriceInUsd = Math.Floor(data.LastPrice / options.Factor) * options.Factor;
             var runningTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
             if (runningTrade != null)
             {
@@ -177,7 +177,7 @@ public class TradeManager : ITradeManager
             var isolatedMarginInSats = Math.Round(runningTrades.Select(x => x.margin + x.maintenance_margin).Sum());
             var availableMarginInSats = user.balance - isolatedMarginInSats;
 
-            var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
+            var oneUsdInSats = Constants.SatoshisPerBitcoin / data.LastPrice;
             if (availableMarginInSats <= oneUsdInSats)
             {
                 logger?.LogDebug("No available margin");
