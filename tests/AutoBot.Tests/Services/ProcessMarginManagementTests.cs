@@ -473,4 +473,55 @@ public class ProcessMarginManagementTests
         userWithLimitedBalance.balance.Should().Be(expectedFinalBalance); // Balance reduced by margin for 2 trades
         userWithLimitedBalance.synthetic_usd_balance.Should().Be(expectedFinalUsdBalance); // USD balance unchanged
     }
+
+    [Fact]
+    public async Task ProcessMarginManagement_WithAllTradesLeverage1_ShouldReturn()
+    {
+        // Arrange
+        var trade1 = TradeFactory.CreateLosingTrade(
+            quantityInUsd: 100m,
+            entryPriceInUsd: 49000m,
+            leverage: 1m,
+            side: TradeSide.Buy,
+            lossPercentage: -60m,
+            TradeState.Running,
+            marginInSats: 1000m,
+            id: "trade-1");
+
+        var trade2 = TradeFactory.CreateLosingTrade(
+            quantityInUsd: 100m,
+            entryPriceInUsd: 49000m,
+            leverage: 1m,
+            side: TradeSide.Buy,
+            lossPercentage: -60m,
+            TradeState.Running,
+            marginInSats: 1000m,
+            id: "trade-2");
+
+        var trade3 = TradeFactory.CreateLosingTrade(
+            quantityInUsd: 100m,
+            entryPriceInUsd: 49000m,
+            leverage: 1m,
+            side: TradeSide.Buy,
+            lossPercentage: -60m,
+            TradeState.Running,
+            marginInSats: 1000m,
+            id: "trade-3");
+
+        var runningTrades = new List<FuturesTradeModel> { trade1, trade2, trade3 };
+        
+        _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
+            .ReturnsAsync(runningTrades);
+
+        // Act
+        await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
+
+        // Assert
+        _mockApiService.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        
+        // Assert balance unchanged
+        _defaultUser.balance.Should().Be(1000000); // No margin added - all trades filtered out by leverage check
+        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+    }
 }
