@@ -89,7 +89,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var oneMarginCallInSats = (long)(oneUsdInSats * options.AddMarginInUsd);
+            var oneMarginCallInSats = decimal.ToInt64(Math.Round(oneUsdInSats * options.AddMarginInUsd, MidpointRounding.AwayFromZero));
             var totalMarginCallInSats = oneMarginCallInSats * marginCallTrades.Count;
             if (totalMarginCallInSats > user.balance)
             {
@@ -99,7 +99,7 @@ public class TradeManager : ITradeManager
             var totalAddedMarginInUsd = 0m;
             foreach (var trade in marginCallTrades)
             {
-                var maxMarginInSats = (long)((Constants.SatoshisPerBitcoin / trade.price) * trade.quantity);
+                var maxMarginInSats = decimal.ToInt64(Math.Round((Constants.SatoshisPerBitcoin / trade.price) * trade.quantity, MidpointRounding.AwayFromZero));
                 if (oneMarginCallInSats + trade.margin > maxMarginInSats)
                 {
                     logger?.LogWarning("Margin call of {MarginCall} sats would exceed maximum margin of {MaxMargin} sats for trade {Id}", oneMarginCallInSats, maxMarginInSats, trade.id);
