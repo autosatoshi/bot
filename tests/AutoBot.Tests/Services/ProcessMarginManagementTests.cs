@@ -71,7 +71,7 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
@@ -80,9 +80,9 @@ public class ProcessMarginManagementTests
     {
         // Arrange
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantityInUsd: 1m,
+            quantityInUsd: 100m,
             entryPriceInUsd: 49000m,
-            leverage: 1m,
+            leverage: 2m,
             side: TradeSide.Buy,
             lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
             TradeState.Running,
@@ -93,7 +93,7 @@ public class ProcessMarginManagementTests
         
         _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockApiService.Setup(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(true);
         _mockApiService.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
@@ -102,7 +102,9 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10408), Times.Once);
+        // oneUsdInSats = 100,000,000 / 50,000 = 2,000 sats per USD
+        // oneMarginCallInSats = 2,000 * 10 = 20,000 sats  
+        _mockApiService.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 20000), Times.Once);
         _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 10), Times.Once);
     }
 
@@ -113,7 +115,7 @@ public class ProcessMarginManagementTests
         var runningTrade = TradeFactory.CreateLosingTrade(
             quantityInUsd: 1m,
             entryPriceInUsd: 49000m,
-            leverage: 1m,
+            leverage: 2m,
             side: TradeSide.Buy,
             lossPercentage: -20m, // -20% loss (exceeds -50% limit: -20% > -50%)
             TradeState.Running,
@@ -131,7 +133,7 @@ public class ProcessMarginManagementTests
         // Assert
         // Loss calculation: (-200 / 1000) * 100 = -20%
         // Since -20% > -50% (MaxLossInPercent), the condition loss <= options.MaxLossInPercent is false
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
@@ -161,7 +163,7 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
@@ -192,7 +194,7 @@ public class ProcessMarginManagementTests
 
         // Assert
         _mockApiService.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
@@ -210,9 +212,9 @@ public class ProcessMarginManagementTests
         };
 
         var runningTrade = TradeFactory.CreateLosingTrade(
-            quantityInUsd: 1m,
+            quantityInUsd: 100m,
             entryPriceInUsd: 49000m,
-            leverage: 1m,
+            leverage: 2m,
             side: TradeSide.Buy,
             lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
             TradeState.Running,
@@ -223,14 +225,16 @@ public class ProcessMarginManagementTests
         
         _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockApiService.Setup(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(true);
 
         // Act
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, userWithLowBalance, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10408), Times.Once);
+        // oneUsdInSats = 100,000,000 / 50,000 = 2,000 sats per USD
+        // oneMarginCallInSats = 2,000 * 10 = 20,000 sats
+        _mockApiService.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 20000), Times.Once);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
@@ -278,7 +282,7 @@ public class ProcessMarginManagementTests
         
         _mockApiService.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockApiService.Setup(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
+        _mockApiService.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(true);
         _mockApiService.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
@@ -287,9 +291,9 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, priceDataForLossTrades, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10100), Times.Once);
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", 10100), Times.Once);
-        _mockApiService.Verify(x => x.AddMargin(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-3", It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", 10100), Times.Once);
+        _mockApiService.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", 10100), Times.Once);
+        _mockApiService.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-3", It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 20), Times.Once); // 2 trades * 10 USD
     }
 
@@ -317,7 +321,7 @@ public class ProcessMarginManagementTests
 
         // Assert
         _mockApiService.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 
@@ -346,7 +350,7 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockApiService.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert - No margin should be added since calculated margin is 0
-        _mockApiService.Verify(x => x.AddMargin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        _mockApiService.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _mockApiService.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
     }
 }
