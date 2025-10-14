@@ -67,44 +67,83 @@ public class TradeManager : ITradeManager
         await ProcessTradeExecution(client, options, data, user, logger);
     }
 
-    private static async Task ProcessMarginManagement(ILnMarketsApiService client, LnMarketsOptions options, LastPriceData messageData, UserModel user, ILogger? logger = null)
+    private static async Task ProcessMarginManagement(ILnMarketsApiService client, LnMarketsOptions options, LastPriceData data, UserModel user, ILogger? logger = null)
     {
         try
         {
-            var addedMarginInUsd = 0m;
             var runningTrades = await client.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
-
-            foreach (var runningTrade in runningTrades)
+            if (runningTrades.Count == 0)
             {
-                if (runningTrade.margin <= 0)
+                return;
+            }
+
+            var oneUsdInSats = (long)Math.Round(Constants.SatoshisPerBitcoin / data.LastPrice);
+            var marginCallTrades = runningTrades
+                .Where(x => x.leverage > 1) // Skip trades with 1x leverage
+                .Where(x => x.margin > 0) // Skip trades with invalid margin to prevent division by zero
+                .Where(x => (x.pl / x.margin) * 100 <= options.MaxLossInPercent) // Include trades where loss is worse than threshold
+                .ToList();
+
+            if (marginCallTrades.Count == 0)
+            {
+                return;
+            }
+
+            var oneMarginCallInSats = decimal.ToInt64(Math.Round(oneUsdInSats * options.AddMarginInUsd, MidpointRounding.AwayFromZero));
+            if (oneMarginCallInSats * marginCallTrades.Count > user.balance)
+            {
+                logger?.LogWarning("Total amount for margin calls exceeds the available balance. Defaulting to FIFO margin call execution.");
+            }
+
+            var totalAddedMarginInSats = 0m;
+            var totalAddedMarginInUsd = 0m;
+            foreach (var trade in marginCallTrades)
+            {
+                var maxMarginInSats = decimal.ToInt64(Math.Round((Constants.SatoshisPerBitcoin / trade.price) * trade.quantity, MidpointRounding.AwayFromZero));
+                if (oneMarginCallInSats + trade.margin > maxMarginInSats)
                 {
-                    logger?.LogWarning("Skipping trade {TradeId} with invalid margin: {Margin}", runningTrade.id, runningTrade.margin);
+                    logger?.LogWarning("Margin call of {MarginCall} sats would exceed maximum margin of {MaxMargin} sats for trade {Id}", oneMarginCallInSats, maxMarginInSats, trade.id);
                     continue;
                 }
 
-                var loss = (runningTrade.pl / runningTrade.margin) * 100;
-                if (loss <= options.MaxLossInPercent)
+                if (oneMarginCallInSats > user.balance)
                 {
-                    var margin = CalculateMarginToAdd(messageData.LastPrice, runningTrade);
-                    if (margin > 0)
-                    {
-                        var amount = (int)(margin * options.AddMarginInUsd);
-                        if (await client.AddMargin(options.Key, options.Passphrase, options.Secret, runningTrade.id, amount))
-                        {
-                            logger?.LogInformation("Successfully added margin {} to running trade '{}'", amount, runningTrade.id);
-                            addedMarginInUsd += options.AddMarginInUsd;
-                        }
-                    }
+                    logger?.LogWarning("Insufficient available balance to execute margin call for trade {Id}: required {Margin} sats | available {Balance} sats", trade.id, oneMarginCallInSats, user.balance);
+                    continue;
                 }
+
+                if (!await client.AddMarginInSats(options.Key, options.Passphrase, options.Secret, trade.id, oneMarginCallInSats))
+                {
+                    logger?.LogError("Failed to add margin {Margin} sats to running trade {Id}", oneMarginCallInSats, trade.id);
+                    continue;
+                }
+
+                user.balance -= oneMarginCallInSats;
+                totalAddedMarginInSats += oneMarginCallInSats;
+                totalAddedMarginInUsd += options.AddMarginInUsd;
+                logger?.LogInformation("Successfully added margin {Margin} sats to running trade {Id}", oneMarginCallInSats, trade.id);
             }
 
-            if (addedMarginInUsd > 0 && user.synthetic_usd_balance > addedMarginInUsd)
+            if (totalAddedMarginInUsd <= 0)
             {
-                if (await client.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)addedMarginInUsd))
-                {
-                    logger?.LogInformation("Successfully swapped {}$ to btc", addedMarginInUsd);
-                }
+                return;
             }
+
+            if (user.synthetic_usd_balance < totalAddedMarginInUsd)
+            {
+                logger?.LogDebug("No enough synthetic usd balance available for swap: required {Amount}$ | available {Available}$", totalAddedMarginInUsd, user.synthetic_usd_balance);
+                return;
+            }
+
+            if (!await client.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, (int)totalAddedMarginInUsd))
+            {
+                logger?.LogError("Failed to swap {Amount}$ to btc", totalAddedMarginInUsd);
+                return;
+            }
+
+            user.balance += totalAddedMarginInSats;
+            user.synthetic_usd_balance -= totalAddedMarginInUsd;
+            logger?.LogInformation("Successfully swapped {Amount}$ to btc", totalAddedMarginInUsd);
         }
         catch (Exception ex)
         {
@@ -112,39 +151,13 @@ public class TradeManager : ITradeManager
         }
     }
 
-    private static decimal CalculateMarginToAdd(decimal currentPrice, FuturesTradeModel runningTrade, ILogger? logger = null)
-    {
-        if (currentPrice <= 0)
-        {
-            logger?.LogWarning("Invalid current price: {Price}", currentPrice);
-            return 0;
-        }
-
-        if (runningTrade.price <= 0 || runningTrade.quantity <= 0)
-        {
-            logger?.LogWarning("Invalid trade data - Price: {Price}, Quantity: {Quantity}", runningTrade.price, runningTrade.quantity);
-            return 0;
-        }
-
-        var btcInSat = Constants.SatoshisPerBitcoin;
-        var margin = Math.Round(btcInSat / currentPrice);
-        var maxMargin = (btcInSat / runningTrade.price) * runningTrade.quantity;
-
-        if (margin + runningTrade.margin > maxMargin)
-        {
-            margin = maxMargin - runningTrade.margin;
-        }
-
-        return Math.Max(0, margin);
-    }
-
-    private static async Task ProcessTradeExecution(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData messageData, UserModel user, ILogger? logger = null)
+    private static async Task ProcessTradeExecution(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData data, UserModel user, ILogger? logger = null)
     {
         try
         {
-            if (messageData.LastPrice <= 0)
+            if (data.LastPrice <= 0)
             {
-                logger?.LogWarning("Invalid last price: {Price}", messageData.LastPrice);
+                logger?.LogWarning("Invalid last price: {Price}", data.LastPrice);
                 return;
             }
 
@@ -155,7 +168,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var quantizedPriceInUsd = Math.Floor(messageData.LastPrice / options.Factor) * options.Factor;
+            var quantizedPriceInUsd = Math.Floor(data.LastPrice / options.Factor) * options.Factor;
             var runningTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
             if (runningTrade != null)
             {
@@ -167,7 +180,7 @@ public class TradeManager : ITradeManager
             var isolatedMarginInSats = Math.Round(runningTrades.Select(x => x.margin + x.maintenance_margin).Sum());
             var availableMarginInSats = user.balance - isolatedMarginInSats;
 
-            var oneUsdInSats = Constants.SatoshisPerBitcoin / messageData.LastPrice;
+            var oneUsdInSats = Constants.SatoshisPerBitcoin / data.LastPrice;
             if (availableMarginInSats <= oneUsdInSats)
             {
                 logger?.LogDebug("No available margin");

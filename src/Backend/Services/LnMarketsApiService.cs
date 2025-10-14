@@ -19,13 +19,13 @@ public class LnMarketsApiService : ILnMarketsApiService
         _logger = logger;
     }
 
-    public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, int amount)
+    public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, long amountInSats)
     {
         var method = "POST";
         var path = "/v2/futures/add-margin";
-        var requestBody = $$"""{"id":"{{id}}","amount":{{amount}}}""";
+        var requestBody = $$"""{"id":"{{id}}","amount":{{amountInSats}}}""";
 
-        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "AddMargin", new object[] { id, amount });
+        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, "AddMargin", new object[] { id, amountInSats });
     }
 
     public async Task<bool> Cancel(string key, string passphrase, string secret, string id)

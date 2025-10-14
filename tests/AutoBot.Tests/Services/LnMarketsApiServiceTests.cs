@@ -47,7 +47,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         var mockResponse = new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -63,7 +63,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.AddMargin(key, passphrase, secret, id, amount);
+        var result = await _service.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeTrue();
@@ -86,7 +86,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         var mockResponse = new HttpResponseMessage(HttpStatusCode.BadRequest)
         {
@@ -102,7 +102,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.AddMargin(key, passphrase, secret, id, amount);
+        var result = await _service.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeFalse();
@@ -116,7 +116,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         _mockHttpMessageHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -127,7 +127,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ThrowsAsync(new HttpRequestException("Network error"));
 
         // Act
-        var result = await _service.AddMargin(key, passphrase, secret, id, amount);
+        var result = await _service.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeFalse();
@@ -141,7 +141,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
         var passphrase = "test-passphrase";
         var secret = "test-secret";
         var id = "test-id";
-        var amount = 100;
+        var amount = 100L;
 
         HttpRequestMessage? capturedRequest = null;
 
@@ -155,7 +155,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         // Act
-        await _service.AddMargin(key, passphrase, secret, id, amount);
+        await _service.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         capturedRequest.Should().NotBeNull();
