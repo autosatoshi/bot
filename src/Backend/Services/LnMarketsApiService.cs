@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
-public class LnMarketsApiService : ILnMarketsApiService
+public class LnMarketsApiService : IMarketplaceClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<LnMarketsApiService> _logger;
