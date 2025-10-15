@@ -7,12 +7,12 @@ using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
 
-public class LnMarketsApiService : IMarketplaceClient
+public class LnMarketsClient : IMarketplaceClient
 {
     private readonly HttpClient _httpClient;
-    private readonly ILogger<LnMarketsApiService> _logger;
+    private readonly ILogger<LnMarketsClient> _logger;
 
-    public LnMarketsApiService(IHttpClientFactory httpClientFactory, IOptions<LnMarketsOptions> options, ILogger<LnMarketsApiService> logger)
+    public LnMarketsClient(IHttpClientFactory httpClientFactory, IOptions<LnMarketsOptions> options, ILogger<LnMarketsClient> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
         _httpClient.BaseAddress = new Uri(options.Value.Endpoint);

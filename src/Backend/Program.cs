@@ -19,7 +19,7 @@ builder.Services.AddOptions<LnMarketsOptions>()
 builder.Services.AddHttpClient();
 builder.Services.AddLogging();
 
-builder.Services.AddSingleton<IMarketplaceClient, LnMarketsApiService>();
+builder.Services.AddSingleton<IMarketplaceClient, LnMarketsClient>();
 builder.Services.AddSingleton<ITradeManager, TradeManager>();
 builder.Services.AddSingleton<IPriceQueue, PriceQueue>();
 builder.Services.AddHostedService<LnMarketsBackgroundService>();

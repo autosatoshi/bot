@@ -11,17 +11,17 @@ using System.Text;
 
 namespace AutoBot.Tests.Services;
 
-public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
+public sealed class LnMarketsClientRefactoredTests : IDisposable
 {
-    private readonly Mock<ILogger<LnMarketsApiService>> _mockLogger;
+    private readonly Mock<ILogger<LnMarketsClient>> _mockLogger;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly HttpClient _httpClient;
     private readonly Mock<IOptions<LnMarketsOptions>> _mockOptions;
-    private readonly LnMarketsApiService _service;
+    private readonly LnMarketsClient _client;
 
-    public LnMarketsApiServiceRefactoredTests()
+    public LnMarketsClientRefactoredTests()
     {
-        _mockLogger = new Mock<ILogger<LnMarketsApiService>>();
+        _mockLogger = new Mock<ILogger<LnMarketsClient>>();
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         
         _httpClient = new HttpClient(_mockHttpMessageHandler.Object);
@@ -36,7 +36,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
             Endpoint = "https://test.endpoint" 
         });
         
-        _service = new LnMarketsApiService(mockFactory.Object, _mockOptions.Object, _mockLogger.Object);
+        _client = new LnMarketsClient(mockFactory.Object, _mockOptions.Object, _mockLogger.Object);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.Cancel(key, passphrase, secret, id);
+        var result = await _client.Cancel(key, passphrase, secret, id);
 
         // Assert
         result.Should().BeTrue();
@@ -103,7 +103,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.CreateLimitBuyOrder(key, passphrase, secret, price, takeprofit, leverage, quantity);
+        var result = await _client.CreateLimitBuyOrder(key, passphrase, secret, price, takeprofit, leverage, quantity);
 
         // Assert
         result.Should().BeTrue();
@@ -192,7 +192,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.GetRunningTrades(key, passphrase, secret);
+        var result = await _client.GetRunningTrades(key, passphrase, secret);
 
         // Assert
         result.Should().NotBeNull();
@@ -234,7 +234,7 @@ public sealed class LnMarketsApiServiceRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.SwapUsdInBtc(key, passphrase, secret, amount);
+        var result = await _client.SwapUsdInBtc(key, passphrase, secret, amount);
 
         // Assert
         result.Should().BeTrue();
