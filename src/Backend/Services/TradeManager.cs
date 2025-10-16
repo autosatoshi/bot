@@ -11,12 +11,12 @@ public class TradeManager : ITradeManager
         public const int SatoshisPerBitcoin = 100_000_000;
     }
 
-    private readonly ILnMarketsApiService _client;
+    private readonly IMarketplaceClient _client;
     private readonly IOptionsMonitor<LnMarketsOptions> _options;
     private readonly ILogger<TradeManager> _logger;
     private DateTime _lastConfigChange = DateTime.MinValue;
 
-    public TradeManager(ILnMarketsApiService client, IOptionsMonitor<LnMarketsOptions> options, ILogger<TradeManager> logger)
+    public TradeManager(IMarketplaceClient client, IOptionsMonitor<LnMarketsOptions> options, ILogger<TradeManager> logger)
     {
         _client = client;
         _options = options;
@@ -45,10 +45,10 @@ public class TradeManager : ITradeManager
 
     public async Task HandlePriceUpdateAsync(LastPriceData data)
     {
-        await HandlePriceUpdate(data, _client, _options.CurrentValue, _logger);
+        await HandlePriceUpdate(_client, _options.CurrentValue, data, _logger);
     }
 
-    private static async Task HandlePriceUpdate(LastPriceData data, ILnMarketsApiService client, LnMarketsOptions options, ILogger? logger = null)
+    private static async Task HandlePriceUpdate(IMarketplaceClient client, LnMarketsOptions options, LastPriceData data, ILogger? logger = null)
     {
         logger?.LogInformation("Handling price update: {Price}$", data.LastPrice);
 
@@ -67,7 +67,7 @@ public class TradeManager : ITradeManager
         await ProcessTradeExecution(client, options, data, user, logger);
     }
 
-    private static async Task ProcessMarginManagement(ILnMarketsApiService client, LnMarketsOptions options, LastPriceData data, UserModel user, ILogger? logger = null)
+    private static async Task ProcessMarginManagement(IMarketplaceClient client, LnMarketsOptions options, LastPriceData data, UserModel user, ILogger? logger = null)
     {
         try
         {
@@ -151,7 +151,7 @@ public class TradeManager : ITradeManager
         }
     }
 
-    private static async Task ProcessTradeExecution(ILnMarketsApiService apiService, LnMarketsOptions options, LastPriceData data, UserModel user, ILogger? logger = null)
+    private static async Task ProcessTradeExecution(IMarketplaceClient client, LnMarketsOptions options, LastPriceData data, UserModel user, ILogger? logger = null)
     {
         try
         {
@@ -161,7 +161,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var runningTrades = await apiService.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
+            var runningTrades = await client.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
             if (runningTrades.Count >= options.MaxRunningTrades)
             {
                 logger?.LogDebug("Maximum number of running trades has been reached ({MaxRunningTrades})", options.MaxRunningTrades);
@@ -187,7 +187,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var openTrades = await apiService.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
+            var openTrades = await client.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
             var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
             if (openTrade != null)
             {
@@ -228,13 +228,13 @@ public class TradeManager : ITradeManager
 
             foreach (var oldTrade in openTrades)
             {
-                if (!await apiService.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id))
+                if (!await client.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id))
                 {
                     logger?.LogWarning("Failed to cancel trade {TradeId}", oldTrade.id);
                 }
             }
 
-            if (!await apiService.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity))
+            if (!await client.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity))
             {
                 logger?.LogError("Failed to create limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
                 return;

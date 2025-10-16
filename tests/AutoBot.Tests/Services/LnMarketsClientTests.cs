@@ -10,17 +10,17 @@ using System.Text;
 
 namespace AutoBot.Tests.Services;
 
-public sealed class LnMarketsApiServiceTests : IDisposable
+public sealed class LnMarketsClientTests : IDisposable
 {
-    private readonly Mock<ILogger<LnMarketsApiService>> _mockLogger;
+    private readonly Mock<ILogger<LnMarketsClient>> _mockLogger;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly HttpClient _httpClient;
     private readonly Mock<IOptions<LnMarketsOptions>> _mockOptions;
-    private readonly LnMarketsApiService _service;
+    private readonly LnMarketsClient _client;
 
-    public LnMarketsApiServiceTests()
+    public LnMarketsClientTests()
     {
-        _mockLogger = new Mock<ILogger<LnMarketsApiService>>();
+        _mockLogger = new Mock<ILogger<LnMarketsClient>>();
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         
         _httpClient = new HttpClient(_mockHttpMessageHandler.Object);
@@ -36,7 +36,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             Endpoint = "https://test.endpoint" 
         });
         
-        _service = new LnMarketsApiService(mockFactory.Object, _mockOptions.Object, _mockLogger.Object);
+        _client = new LnMarketsClient(mockFactory.Object, _mockOptions.Object, _mockLogger.Object);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.AddMarginInSats(key, passphrase, secret, id, amount);
+        var result = await _client.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeTrue();
@@ -102,7 +102,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _service.AddMarginInSats(key, passphrase, secret, id, amount);
+        var result = await _client.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeFalse();
@@ -127,7 +127,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ThrowsAsync(new HttpRequestException("Network error"));
 
         // Act
-        var result = await _service.AddMarginInSats(key, passphrase, secret, id, amount);
+        var result = await _client.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeFalse();
@@ -155,7 +155,7 @@ public sealed class LnMarketsApiServiceTests : IDisposable
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         // Act
-        await _service.AddMarginInSats(key, passphrase, secret, id, amount);
+        await _client.AddMarginInSats(key, passphrase, secret, id, amount);
 
         // Assert
         capturedRequest.Should().NotBeNull();

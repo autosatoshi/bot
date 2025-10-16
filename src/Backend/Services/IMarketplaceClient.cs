@@ -2,7 +2,7 @@ using AutoBot.Models.LnMarkets;
 
 namespace AutoBot.Services;
 
-public interface ILnMarketsApiService
+public interface IMarketplaceClient
 {
     Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret);
 
