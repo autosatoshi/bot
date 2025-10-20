@@ -21,186 +21,117 @@ public class LnMarketsClient : IMarketplaceClient
 
     public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, long amountInSats)
     {
-        var method = "POST";
         var path = "/v2/futures/add-margin";
         var requestBody = $$"""{"id":"{{id}}","amount":{{amountInSats}}}""";
-
-        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, nameof(AddMarginInSats), [id, amountInSats]);
+        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(AddMarginInSats), _logger);
     }
 
     public async Task<bool> Cancel(string key, string passphrase, string secret, string id)
     {
-        var method = "POST";
         var path = "/v2/futures/cancel";
         var requestBody = $"{{\"id\":\"{id}\"}}";
-
-        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, nameof(Cancel), [id]);
+        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(Cancel), _logger);
     }
 
     public async Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity)
     {
-        var method = "POST";
         var path = "/v2/futures";
         var requestBody = $$"""{"side":"b","type":"m","takeprofit":{{takeprofit.ToString(CultureInfo.InvariantCulture)}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
-
-        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, nameof(CreateNewTrade), [takeprofit, leverage, quantity]);
+        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(CreateNewTrade), _logger);
     }
 
     public async Task<bool> SwapUsdInBtc(string key, string passphrase, string secret, int amount)
     {
-        var method = "POST";
         var path = "/v2/swap";
         var requestBody = $$"""{"in_asset":"USD","out_asset":"BTC","in_amount":{{amount}}}""";
-
-        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, nameof(SwapUsdInBtc), ["USD", "BTC", amount]);
+        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(SwapUsdInBtc), _logger);
     }
 
     public async Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret)
     {
-        var method = "GET";
         var path = "/v2/futures";
         var queryParams = "type=running";
-
-        return await ExecuteGetRequestAsync<List<FuturesTradeModel>>(key, passphrase, secret, method, path, queryParams, nameof(GetRunningTrades)) ?? [];
+        return await ExecuteGetRequestAsync<List<FuturesTradeModel>>(_httpClient, key, passphrase, secret, path, queryParams, nameof(GetRunningTrades), _logger) ?? [];
     }
 
     public async Task<UserModel?> GetUser(string key, string passphrase, string secret)
     {
-        var method = "GET";
         var path = "/v2/user";
         var queryParams = string.Empty;
-
-        return await ExecuteGetRequestAsync<UserModel>(key, passphrase, secret, method, path, queryParams, nameof(GetUser));
+        return await ExecuteGetRequestAsync<UserModel>(_httpClient, key, passphrase, secret, path, queryParams, nameof(GetUser), _logger);
     }
 
-    private void SetLnMarketsHeaders(string key, string passphrase, string signature, long timestamp)
+    private static async Task<bool> ExecutePostRequestAsync(HttpClient client, string key, string passphrase, string secret, string path, string requestBody, string operationName, ILogger? logger = null)
     {
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Add("LNM-ACCESS-KEY", key);
-        _httpClient.DefaultRequestHeaders.Add("LNM-ACCESS-PASSPHRASE", passphrase);
-        _httpClient.DefaultRequestHeaders.Add("LNM-ACCESS-SIGNATURE", signature);
-        _httpClient.DefaultRequestHeaders.Add("LNM-ACCESS-TIMESTAMP", timestamp.ToString());
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Content-Type", "application/json");
-    }
-
-    private void ClearLnMarketsHeaders()
-    {
-        _httpClient.DefaultRequestHeaders.Clear();
-    }
-
-    private async Task<bool> ExecutePostRequestAsync(string key, string passphrase, string secret, string method, string path, string requestBody, string operationName, object[]? logParameters = null)
-    {
-        var timestamp = GetUtcNowInUnixTimestamp();
-        var signaturePayload = $"{timestamp}{method}{path}{requestBody}";
-
-        SetLnMarketsHeaders(key, passphrase, GetSignature(secret, signaturePayload), timestamp);
-        var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-
         try
         {
-            var response = await _httpClient.PostAsync($"{path}", content);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (response.IsSuccessStatusCode)
-            {
-                if (logParameters != null)
-                {
-                    var sanitizedParams = SanitizeLogParameters(logParameters);
-                    _logger.LogDebug($"{operationName} successful for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")), sanitizedParams);
-                }
-                else
-                {
-                    _logger.LogDebug($"{operationName} successful");
-                }
-
-                return true;
-            }
-
-            if (logParameters != null)
-            {
-                var sanitizedParams = SanitizeLogParameters(logParameters);
-                _logger.LogWarning(
-                    $"{operationName} failed for " + string.Join(", ", sanitizedParams.Select((p, i) => $"param{i}: {{{i}}}")) + ". Status: {StatusCode}, Response: {Response}",
-                    sanitizedParams.Concat(new object[] { response.StatusCode, SanitizeResponseContent(responseContent) }).ToArray());
-            }
-            else
-            {
-                _logger.LogWarning($"{operationName} failed. Status: {{StatusCode}}, Response: {{Response}}", response.StatusCode, SanitizeResponseContent(responseContent));
-            }
-
-            return false;
+            using var request = CreateAuthenticatedPostRequest(path, key, passphrase, secret, requestBody);
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return true;
         }
         catch (Exception ex)
         {
-            if (logParameters != null)
-            {
-                _logger.LogError(ex, $"Exception occurred while executing {operationName} for " + string.Join(", ", logParameters.Select((p, i) => $"param{i}: {{{i}}}")), logParameters);
-            }
-            else
-            {
-                _logger.LogError(ex, $"Exception occurred while executing {operationName}");
-            }
-
+            logger?.LogError(ex, "Exception occurred while executing {Operation}", operationName);
             return false;
-        }
-        finally
-        {
-            ClearLnMarketsHeaders();
         }
     }
 
-    private async Task<T?> ExecuteGetRequestAsync<T>(string key, string passphrase, string secret, string method, string path, string queryParams, string operationName)
+    private static async Task<T?> ExecuteGetRequestAsync<T>(HttpClient client, string key, string passphrase, string secret, string path, string queryParams, string operationName, ILogger? logger = null)
         where T : class
     {
         try
         {
-            var timestamp = GetUtcNowInUnixTimestamp();
-            var signaturePayload = $"{timestamp}{method}{path}{queryParams}";
-            SetLnMarketsHeaders(key, passphrase, GetSignature(secret, signaturePayload), timestamp);
-
-            var requestUrl = $"{path}?{queryParams}";
-            return await _httpClient.GetFromJsonAsync<T>(requestUrl);
+            using var request = CreateAuthenticatedGetRequest(path, key, passphrase, secret, queryParams);
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<T>();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception occurred while executing {Operation}", operationName);
+            logger?.LogError(ex, "Exception occurred while executing {Operation}", operationName);
             return null;
         }
-        finally
+    }
+
+    private static HttpRequestMessage CreateAuthenticatedPostRequest(string path, string key, string passphrase, string secret, string requestBody)
+    {
+        var timestamp = (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+        var signaturePayload = $"{timestamp}POST{path}{requestBody}";
+        var signature = CreateSignature(secret, signaturePayload);
+
+        var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
-            ClearLnMarketsHeaders();
-        }
+            Content = new StringContent(requestBody, Encoding.UTF8, "application/json"),
+        };
+        AddAuthHeaders(request, key, passphrase, signature, timestamp);
+        return request;
     }
 
-    private object[] SanitizeLogParameters(object[] parameters)
+    private static HttpRequestMessage CreateAuthenticatedGetRequest(string path, string key, string passphrase, string secret, string queryParams)
     {
-        return parameters.Select(p => p is string str && IsCredential(str) ? "***" : p).ToArray();
+        var timestamp = (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+        var signaturePayload = $"{timestamp}GET{path}{queryParams}";
+        var signature = CreateSignature(secret, signaturePayload);
+
+        var url = string.IsNullOrEmpty(queryParams) ? path : $"{path}?{queryParams}";
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        AddAuthHeaders(request, key, passphrase, signature, timestamp);
+        return request;
     }
 
-    private string SanitizeResponseContent(string responseContent)
-    {
-        // Don't log potentially sensitive response content completely
-        return responseContent.Length > 200 ?
-            $"{responseContent[..100]}... [truncated {responseContent.Length - 100} chars]" :
-            responseContent;
-    }
-
-    private bool IsCredential(string value)
-    {
-        // Basic heuristic to detect potential credentials
-        return !string.IsNullOrEmpty(value) && (
-            value.Length > 20 || // Likely API keys are longer
-            value.Contains("sk_") || // Common API key prefix
-            value.Contains("pk_") ||
-            (value.All(char.IsLetterOrDigit) && value.Length > 10));
-    }
-
-    private string GetSignature(string secret, string payload)
+    private static string CreateSignature(string secret, string payload)
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
         return Convert.ToBase64String(hash);
     }
 
-    private static long GetUtcNowInUnixTimestamp() => (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+    private static void AddAuthHeaders(HttpRequestMessage request, string key, string passphrase, string signature, long timestamp)
+    {
+        request.Headers.Add("LNM-ACCESS-KEY", key);
+        request.Headers.Add("LNM-ACCESS-PASSPHRASE", passphrase);
+        request.Headers.Add("LNM-ACCESS-SIGNATURE", signature);
+        request.Headers.Add("LNM-ACCESS-TIMESTAMP", timestamp.ToString());
+    }
 }
