@@ -1,6 +1,6 @@
-﻿using System.Globalization;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
 using AutoBot.Models.Units;
@@ -10,56 +10,56 @@ namespace AutoBot.Services;
 
 public class LnMarketsClient : IMarketplaceClient
 {
-    private readonly HttpClient _httpClient;
+    private readonly HttpClient _client;
     private readonly ILogger<LnMarketsClient> _logger;
 
-    public LnMarketsClient(IHttpClientFactory httpClientFactory, IOptions<LnMarketsOptions> options, ILogger<LnMarketsClient> logger)
+    public LnMarketsClient(IHttpClientFactory factory, IOptions<LnMarketsOptions> options, ILogger<LnMarketsClient> logger)
     {
-        _httpClient = httpClientFactory.CreateClient();
-        _httpClient.BaseAddress = new Uri(options.Value.Endpoint);
+        _client = factory.CreateClient();
+        _client.BaseAddress = new Uri(options.Value.Endpoint);
         _logger = logger;
     }
 
     public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, Satoshi amountInSats)
     {
-        var path = "/v2/futures/add-margin";
-        var requestBody = $$"""{"id":"{{id}}","amount":{{amountInSats}}}""";
-        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(AddMarginInSats), _logger);
+        const string path = "/v2/futures/add-margin";
+        var requestBody = JsonSerializer.Serialize(new { id = id, amount = amountInSats });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(AddMarginInSats), _logger);
     }
 
     public async Task<bool> Cancel(string key, string passphrase, string secret, string id)
     {
-        var path = "/v2/futures/cancel";
-        var requestBody = $"{{\"id\":\"{id}\"}}";
-        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(Cancel), _logger);
+        const string path = "/v2/futures/cancel";
+        var requestBody = JsonSerializer.Serialize(new { id = id });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(Cancel), _logger);
     }
 
     public async Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity)
     {
-        var path = "/v2/futures";
-        var requestBody = $$"""{"side":"b","type":"m","takeprofit":{{takeprofit.ToString(CultureInfo.InvariantCulture)}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
-        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(CreateNewTrade), _logger);
+        const string path = "/v2/futures";
+        var requestBody = JsonSerializer.Serialize(new { side = "b", type = "m", takeprofit = takeprofit, leverage = leverage, quantity = quantity });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(CreateNewTrade), _logger);
     }
 
     public async Task<bool> SwapUsdInBtc(string key, string passphrase, string secret, int amount)
     {
-        var path = "/v2/swap";
-        var requestBody = $$"""{"in_asset":"USD","out_asset":"BTC","in_amount":{{amount}}}""";
-        return await ExecutePostRequestAsync(_httpClient, key, passphrase, secret, path, requestBody, nameof(SwapUsdInBtc), _logger);
+        const string path = "/v2/swap";
+        var requestBody = JsonSerializer.Serialize(new { in_asset = "USD", out_asset = "BTC", in_amount = amount });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(SwapUsdInBtc), _logger);
     }
 
     public async Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret)
     {
-        var path = "/v2/futures";
-        var queryParams = "type=running";
-        return await ExecuteGetRequestAsync<List<FuturesTradeModel>>(_httpClient, key, passphrase, secret, path, queryParams, nameof(GetRunningTrades), _logger) ?? [];
+        const string path = "/v2/futures";
+        const string queryParams = "type=running";
+        return await ExecuteGetRequestAsync<List<FuturesTradeModel>>(_client, key, passphrase, secret, path, queryParams, nameof(GetRunningTrades), _logger) ?? [];
     }
 
     public async Task<UserModel?> GetUser(string key, string passphrase, string secret)
     {
-        var path = "/v2/user";
-        var queryParams = string.Empty;
-        return await ExecuteGetRequestAsync<UserModel>(_httpClient, key, passphrase, secret, path, queryParams, nameof(GetUser), _logger);
+        const string path = "/v2/user";
+        const string queryParams = "";
+        return await ExecuteGetRequestAsync<UserModel>(_client, key, passphrase, secret, path, queryParams, nameof(GetUser), _logger);
     }
 
     private static async Task<bool> ExecutePostRequestAsync(HttpClient client, string key, string passphrase, string secret, string path, string requestBody, string operationName, ILogger? logger = null)
