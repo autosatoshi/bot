@@ -13,6 +13,11 @@ public class TradeManager : ITradeManager
 
     private static decimal GetQuantizedPrice(decimal price, decimal factor)
     {
+        if (factor <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(factor), factor, "Factor must be greater than zero");
+        }
+
         return Math.Floor(price / factor) * factor;
     }
 
