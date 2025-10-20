@@ -84,7 +84,6 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
         var key = "test-key";
         var passphrase = "test-passphrase";
         var secret = "test-secret";
-        var price = 50000m;
         var takeprofit = 51000m;
         var leverage = 2;
         var quantity = 1.5;
@@ -103,7 +102,7 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _client.CreateLimitBuyOrder(key, passphrase, secret, price, takeprofit, leverage, quantity);
+        var result = await _client.CreateNewTrade(key, passphrase, secret, takeprofit, leverage, quantity);
 
         // Assert
         result.Should().BeTrue();
