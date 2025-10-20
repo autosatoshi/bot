@@ -77,7 +77,7 @@ public class ProcessTradeExecutionTests
         // Act
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, invalidPriceData, _defaultUser, _mockLogger.Object);
 
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -94,36 +94,9 @@ public class ProcessTradeExecutionTests
         // Act
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, invalidPriceData, _defaultUser, _mockLogger.Object);
 
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
-    [Fact]
-    public async Task ProcessTradeExecution_WithExistingOpenTrade_ShouldReturn()
-    {
-        // Arrange
-        var openTrade = TradeFactory.CreateTrade(
-            quantityInUsd: 1m,
-            entryPriceInUsd: 50000m, // Same as calculated tradePrice
-            leverage: 2m,
-            side: TradeSide.Buy,
-            currentPriceInUsd: 50000m, // No P&L
-            TradeState.Open,
-            id: "open-trade");
-
-        var emptyRunningTrades = new List<FuturesTradeModel>();
-        var openTrades = new List<FuturesTradeModel> { openTrade };
-
-        _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(openTrades);
-
-        // Act
-        await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
-
-        // Assert
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
-    }
 
     [Fact]
     public async Task ProcessTradeExecution_WithExistingRunningTrade_ShouldReturn()
@@ -147,7 +120,7 @@ public class ProcessTradeExecutionTests
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -175,7 +148,7 @@ public class ProcessTradeExecutionTests
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -206,7 +179,7 @@ public class ProcessTradeExecutionTests
         // oneUsdInSats = 100,000,000 / 50000 = 2000
         // freeMargin = userBalance - 0 = 1000 (since no open/running trades)
         // 1000 <= 2000, so should return early
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -253,7 +226,7 @@ public class ProcessTradeExecutionTests
         // availableMargin = 30000 > 2000 (passes first check)
         // requiredMargin = (100,000,000 / 50000) * 1000 / 1 = 2,000,000
         // 2,000,000 > 30000 (fails second check)
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -277,7 +250,7 @@ public class ProcessTradeExecutionTests
             .ReturnsAsync(emptyRunningTrades);
         _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyOpenTrades);
-        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+        _mockClient.Setup(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
             .ReturnsAsync(true);
 
         var highQuantityOptions = new LnMarketsOptions
@@ -301,11 +274,10 @@ public class ProcessTradeExecutionTests
         // availableMargin = 5,000,000 > 2000 (passes first check)
         // requiredMargin = (100,000,000 / 50000) * 1000 / 1 = 2,000,000  
         // 2,000,000 < 5,000,000 (passes second check)
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(
+        _mockClient.Verify(x => x.CreateNewTrade(
             highQuantityOptions.Key,
             highQuantityOptions.Passphrase,
             highQuantityOptions.Secret,
-            50000m, // quantizedPriceInUsd
             52000m, // exitPriceInUsd (50000 + 2000)
             highQuantityOptions.Leverage,
             highQuantityOptions.Quantity), Times.Once);
@@ -334,7 +306,7 @@ public class ProcessTradeExecutionTests
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, highPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -348,7 +320,7 @@ public class ProcessTradeExecutionTests
             .ReturnsAsync(emptyRunningTrades);
         _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyOpenTrades);
-        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+        _mockClient.Setup(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
             .ReturnsAsync(true);
 
         // Act
@@ -356,98 +328,15 @@ public class ProcessTradeExecutionTests
 
         // Assert
         // tradePrice = 50000, takeprofit = 2000 → takeprofit price = 52000
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(
+        _mockClient.Verify(x => x.CreateNewTrade(
             _defaultOptions.Key,
             _defaultOptions.Passphrase,
             _defaultOptions.Secret,
-            50000m, // tradePrice
             52000m, // tradePrice + takeprofit
             _defaultOptions.Leverage,
             _defaultOptions.Quantity), Times.Once);
     }
 
-    [Fact]
-    public async Task ProcessTradeExecution_WithOldTradesToCancel_ShouldCancelAndCreateOrder()
-    {
-        // Arrange
-        var oldOpenTrade = TradeFactory.CreateTrade(
-            quantityInUsd: 1m,
-            entryPriceInUsd: 48000m, // Different from tradePrice (50000)
-            leverage: 2m,
-            side: TradeSide.Buy,
-            currentPriceInUsd: 48000m, // No P&L
-            TradeState.Open,
-            id: "old-trade");
-
-        var emptyRunningTrades = new List<FuturesTradeModel>();
-        var openTrades = new List<FuturesTradeModel> { oldOpenTrade };
-
-        _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(openTrades);
-        _mockClient.Setup(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(true);
-        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
-            .ReturnsAsync(true);
-
-        // Act
-        await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
-
-        // Assert
-        _mockClient.Verify(x => x.Cancel(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "old-trade"), Times.Once);
-        // tradePrice = 50000, takeprofit = 2000 → takeprofit price = 52000
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(
-            _defaultOptions.Key,
-            _defaultOptions.Passphrase,
-            _defaultOptions.Secret,
-            50000m, // tradePrice
-            52000m, // tradePrice + takeprofit
-            _defaultOptions.Leverage,
-            _defaultOptions.Quantity), Times.Once);
-    }
-
-    [Fact]
-    public async Task ProcessTradeExecution_WithCancelFailure_ShouldCreateOrder()
-    {
-        // Arrange
-        var oldOpenTrade = TradeFactory.CreateTrade(
-            quantityInUsd: 1m,
-            entryPriceInUsd: 48000m,
-            leverage: 2m,
-            side: TradeSide.Buy,
-            currentPriceInUsd: 48000m, // No P&L
-            TradeState.Open,
-            id: "failing-trade");
-
-        var emptyRunningTrades = new List<FuturesTradeModel>();
-        var openTrades = new List<FuturesTradeModel> { oldOpenTrade };
-
-        _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(openTrades);
-        _mockClient.Setup(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(false);
-        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
-            .ReturnsAsync(true);
-
-        // Act
-        await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
-
-        // Assert
-        _mockClient.Verify(x => x.Cancel(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "failing-trade"), Times.Once);
-        // Should still create the order despite cancel failure
-        // tradePrice = 50000, takeprofit = 2000 → takeprofit price = 52000
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(
-            _defaultOptions.Key,
-            _defaultOptions.Passphrase,
-            _defaultOptions.Secret,
-            50000m, // tradePrice
-            52000m, // tradePrice + takeprofit
-            _defaultOptions.Leverage,
-            _defaultOptions.Quantity), Times.Once);
-    }
 
     [Fact]
     public async Task ProcessTradeExecution_WithApiFailure_ShouldReturn()
@@ -460,7 +349,7 @@ public class ProcessTradeExecutionTests
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Fact]
@@ -491,7 +380,7 @@ public class ProcessTradeExecutionTests
             .ReturnsAsync(emptyRunningTrades);
         _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyOpenTrades);
-        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+        _mockClient.Setup(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
             .ReturnsAsync(true);
 
         // Act
@@ -502,12 +391,11 @@ public class ProcessTradeExecutionTests
         // quantizedPrice = Math.Floor(50750 / 1000) * 1000 = 50000
         // requiredMargin = (100,000,000 / 50000) * 1 / 2 = 1000 sats
         // availableMargin = 50000 > 1000, so order should be created
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(
+        _mockClient.Verify(x => x.CreateNewTrade(
             _defaultOptions.Key,
             _defaultOptions.Passphrase, 
             _defaultOptions.Secret,
-            50000m, // Should use quantized price for entry, not market price
-            52000m, // 50000 + 2000 takeprofit
+            52750m, // Should use market price for exit: 50750 + 2000 takeprofit
             _defaultOptions.Leverage,
             _defaultOptions.Quantity), Times.Once);
     }
@@ -558,7 +446,7 @@ public class ProcessTradeExecutionTests
 
         // Assert
         // If the calculation is correct, the method should find the existing trade and return early
-        _mockClient.Verify(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
+        _mockClient.Verify(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never);
     }
 
     [Theory]
