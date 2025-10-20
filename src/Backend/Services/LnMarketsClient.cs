@@ -19,25 +19,11 @@ public class LnMarketsClient : IMarketplaceClient
         _logger = logger;
     }
 
-    public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, long amountInSats)
+    public async Task<UserModel?> GetUser(string key, string passphrase, string secret)
     {
-        const string path = "/v2/futures/add-margin";
-        var requestBody = JsonSerializer.Serialize(new { id = id, amount = amountInSats });
-        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(AddMarginInSats), _logger);
-    }
-
-    public async Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity)
-    {
-        const string path = "/v2/futures";
-        var requestBody = JsonSerializer.Serialize(new { side = "b", type = "m", takeprofit = takeprofit, leverage = leverage, quantity = quantity });
-        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(CreateNewTrade), _logger);
-    }
-
-    public async Task<bool> SwapUsdInBtc(string key, string passphrase, string secret, int amount)
-    {
-        const string path = "/v2/swap";
-        var requestBody = JsonSerializer.Serialize(new { in_asset = "USD", out_asset = "BTC", in_amount = amount });
-        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(SwapUsdInBtc), _logger);
+        const string path = "/v2/user";
+        const string queryParams = "";
+        return await ExecuteGetRequestAsync<UserModel>(_client, key, passphrase, secret, path, queryParams, nameof(GetUser), _logger);
     }
 
     public async Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret)
@@ -47,11 +33,25 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecuteGetRequestAsync<List<FuturesTradeModel>>(_client, key, passphrase, secret, path, queryParams, nameof(GetRunningTrades), _logger) ?? [];
     }
 
-    public async Task<UserModel?> GetUser(string key, string passphrase, string secret)
+    public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, long amountInSats)
     {
-        const string path = "/v2/user";
-        const string queryParams = "";
-        return await ExecuteGetRequestAsync<UserModel>(_client, key, passphrase, secret, path, queryParams, nameof(GetUser), _logger);
+        const string path = "/v2/futures/add-margin";
+        var requestBody = JsonSerializer.Serialize(new { id = id, amount = amountInSats });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(AddMargin), _logger);
+    }
+
+    public async Task<bool> SwapUsdToBtc(string key, string passphrase, string secret, int amountInUsd)
+    {
+        const string path = "/v2/swap";
+        var requestBody = JsonSerializer.Serialize(new { in_asset = "USD", out_asset = "BTC", in_amount = amountInUsd });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(SwapUsdToBtc), _logger);
+    }
+
+    public async Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal exitPriceInUsd, int leverage, double quantityInUsd)
+    {
+        const string path = "/v2/futures";
+        var requestBody = JsonSerializer.Serialize(new { side = "b", type = "m", takeprofit = exitPriceInUsd, leverage = leverage, quantity = quantityInUsd });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(CreateNewTrade), _logger);
     }
 
     private static async Task<bool> ExecutePostRequestAsync(HttpClient client, string key, string passphrase, string secret, string path, string requestBody, string operationName, ILogger? logger = null)

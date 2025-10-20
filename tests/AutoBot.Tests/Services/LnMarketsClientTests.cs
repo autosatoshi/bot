@@ -63,7 +63,7 @@ public sealed class LnMarketsClientTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _client.AddMarginInSats(key, passphrase, secret, id, amount);
+        var result = await _client.AddMargin(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeTrue();
@@ -102,7 +102,7 @@ public sealed class LnMarketsClientTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _client.AddMarginInSats(key, passphrase, secret, id, amount);
+        var result = await _client.AddMargin(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeFalse();
@@ -127,7 +127,7 @@ public sealed class LnMarketsClientTests : IDisposable
             .ThrowsAsync(new HttpRequestException("Network error"));
 
         // Act
-        var result = await _client.AddMarginInSats(key, passphrase, secret, id, amount);
+        var result = await _client.AddMargin(key, passphrase, secret, id, amount);
 
         // Assert
         result.Should().BeFalse();
@@ -163,7 +163,7 @@ public sealed class LnMarketsClientTests : IDisposable
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         // Act
-        await _client.AddMarginInSats(key, passphrase, secret, id, amount);
+        await _client.AddMargin(key, passphrase, secret, id, amount);
 
         // Assert
         capturedRequest.Should().NotBeNull();
