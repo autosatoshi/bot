@@ -11,6 +11,8 @@ public interface IMarketplaceClient
 
     Task<bool> AddMargin(string key, string passphrase, string secret, string tradeId, Satoshi amountInSats);
 
+    Task<bool> CreateMarketBuyOrder(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity);
+
     Task<bool> SwapUsdToBtc(string key, string passphrase, string secret, int amountInUsd);
 
     Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal exitPriceInUsd, int leverage, double quantityInUsd);
