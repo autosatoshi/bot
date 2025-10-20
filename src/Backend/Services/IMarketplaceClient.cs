@@ -12,6 +12,8 @@ public interface IMarketplaceClient
 
     Task<bool> CreateLimitBuyOrder(string key, string passphrase, string secret, decimal price, decimal takeprofit, int leverage, double quantity);
 
+    Task<bool> CreateMarketBuyOrder(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity);
+
     Task<bool> SwapUsdInBtc(string key, string passphrase, string secret, int amount);
 
     Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, long amountInSats);
