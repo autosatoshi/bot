@@ -221,13 +221,13 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            if (!await client.CreateMarketBuyOrder(options.Key, options.Passphrase, options.Secret, exitPriceInUsd, options.Leverage, options.Quantity))
+            if (!await client.CreateNewTrade(options.Key, options.Passphrase, options.Secret, exitPriceInUsd, options.Leverage, options.Quantity))
             {
-                logger?.LogError("Failed to create limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", data.LastPrice, exitPriceInUsd, options.Leverage, options.Quantity);
+                logger?.LogError("Failed to create new trade:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", data.LastPrice, exitPriceInUsd, options.Leverage, options.Quantity);
                 return;
             }
 
-            logger?.LogInformation("Successfully created limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", data.LastPrice, exitPriceInUsd, options.Leverage, options.Quantity);
+            logger?.LogInformation("Successfully created new trade:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", data.LastPrice, exitPriceInUsd, options.Leverage, options.Quantity);
         }
         catch (Exception ex)
         {
