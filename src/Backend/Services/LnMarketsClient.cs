@@ -26,13 +26,6 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(AddMarginInSats), _logger);
     }
 
-    public async Task<bool> Cancel(string key, string passphrase, string secret, string id)
-    {
-        const string path = "/v2/futures/cancel";
-        var requestBody = JsonSerializer.Serialize(new { id = id });
-        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(Cancel), _logger);
-    }
-
     public async Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity)
     {
         const string path = "/v2/futures";
