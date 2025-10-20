@@ -144,6 +144,7 @@ public sealed class LnMarketsClientTests : IDisposable
         var amount = 100L;
 
         HttpRequestMessage? capturedRequest = null;
+        string? capturedRequestBody = null;
 
         _mockHttpMessageHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -151,7 +152,14 @@ public sealed class LnMarketsClientTests : IDisposable
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>()
             )
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .Callback<HttpRequestMessage, CancellationToken>(async (req, _) => 
+            {
+                capturedRequest = req;
+                if (req.Content != null)
+                {
+                    capturedRequestBody = await req.Content.ReadAsStringAsync();
+                }
+            })
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         // Act
@@ -165,9 +173,9 @@ public sealed class LnMarketsClientTests : IDisposable
         capturedRequest!.Headers.Should().Contain(h => h.Key == "LNM-ACCESS-TIMESTAMP");
         
         // Verify request body contains correct data
-        var requestBody = await capturedRequest.Content!.ReadAsStringAsync();
-        requestBody.Should().Contain($"\"id\":\"{id}\"");
-        requestBody.Should().Contain($"\"amount\":{amount}");
+        capturedRequestBody.Should().NotBeNull();
+        capturedRequestBody.Should().Contain($"\"id\":\"{id}\"");
+        capturedRequestBody.Should().Contain($"\"amount\":{amount}");
     }
 
     public void Dispose()
