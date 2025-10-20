@@ -38,15 +38,6 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, nameof(Cancel), new object[] { id });
     }
 
-    public async Task<bool> CreateLimitBuyOrder(string key, string passphrase, string secret, decimal price, decimal takeprofit, int leverage, double quantity)
-    {
-        var method = "POST";
-        var path = "/v2/futures";
-        var requestBody = $$"""{"side":"b","type":"l","price":{{price.ToString(CultureInfo.InvariantCulture)}},"takeprofit":{{takeprofit.ToString(CultureInfo.InvariantCulture)}},"leverage":{{leverage}},"quantity":{{quantity.ToString(CultureInfo.InvariantCulture)}}}""";
-
-        return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, nameof(CreateLimitBuyOrder), new object[] { price, takeprofit, leverage, quantity });
-    }
-
     public async Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity)
     {
         var method = "POST";
