@@ -152,12 +152,17 @@ public sealed class LnMarketsClientTests : IDisposable
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>()
             )
-            .Callback<HttpRequestMessage, CancellationToken>(async (req, _) => 
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => 
             {
                 capturedRequest = req;
+                
+                // Verify Content-Type and path synchronously
+                req.Content?.Headers.ContentType?.MediaType.Should().Be("application/json");
+                req.RequestUri?.AbsolutePath.Should().Contain("/v2/futures/add-margin");
+                
                 if (req.Content != null)
                 {
-                    capturedRequestBody = await req.Content.ReadAsStringAsync();
+                    capturedRequestBody = req.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                 }
             })
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
