@@ -6,8 +6,6 @@ public interface IMarketplaceClient
 {
     Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret);
 
-    Task<IReadOnlyList<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret);
-
     Task<UserModel> GetUser(string key, string passphrase, string secret);
 
     Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal takeprofit, int leverage, double quantity);

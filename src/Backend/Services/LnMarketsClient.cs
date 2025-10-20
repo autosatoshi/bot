@@ -55,15 +55,6 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecutePostRequestAsync(key, passphrase, secret, method, path, requestBody, nameof(SwapUsdInBtc), new object[] { "USD", "BTC", amount });
     }
 
-    public async Task<IReadOnlyList<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret)
-    {
-        var method = "GET";
-        var path = "/v2/futures";
-        var queryParams = "type=open";
-
-        return await ExecuteGetRequestAsync(key, passphrase, secret, method, path, queryParams, nameof(GetOpenTrades), new List<FuturesTradeModel>()) ?? new List<FuturesTradeModel>();
-    }
-
     public async Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret)
     {
         var method = "GET";

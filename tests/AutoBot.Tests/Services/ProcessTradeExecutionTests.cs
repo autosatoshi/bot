@@ -165,12 +165,8 @@ public class ProcessTradeExecutionTests
         };
 
         var emptyRunningTrades = new List<FuturesTradeModel>();
-        var emptyOpenTrades = new List<FuturesTradeModel>();
-
         _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyOpenTrades);
 
         // Act
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, userWithLowBalance, _mockLogger.Object);
@@ -197,12 +193,8 @@ public class ProcessTradeExecutionTests
         };
 
         var emptyRunningTrades = new List<FuturesTradeModel>();
-        var emptyOpenTrades = new List<FuturesTradeModel>();
-
         _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyOpenTrades);
 
         // Use options that require high margin
         var highQuantityOptions = new LnMarketsOptions
@@ -244,12 +236,8 @@ public class ProcessTradeExecutionTests
         };
 
         var emptyRunningTrades = new List<FuturesTradeModel>();
-        var emptyOpenTrades = new List<FuturesTradeModel>();
-
         _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyOpenTrades);
         _mockClient.Setup(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
             .ReturnsAsync(true);
 
@@ -295,12 +283,8 @@ public class ProcessTradeExecutionTests
         };
 
         var emptyRunningTrades = new List<FuturesTradeModel>();
-        var emptyOpenTrades = new List<FuturesTradeModel>();
-
         _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyOpenTrades);
 
         // Act
         await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, highPriceData, _defaultUser, _mockLogger.Object);
@@ -314,12 +298,9 @@ public class ProcessTradeExecutionTests
     {
         // Arrange
         var emptyRunningTrades = new List<FuturesTradeModel>();
-        var emptyOpenTrades = new List<FuturesTradeModel>();
 
         _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyOpenTrades);
         _mockClient.Setup(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
             .ReturnsAsync(true);
 
@@ -374,12 +355,8 @@ public class ProcessTradeExecutionTests
         };
 
         var emptyRunningTrades = new List<FuturesTradeModel>();
-        var emptyOpenTrades = new List<FuturesTradeModel>();
-
         _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(emptyRunningTrades);
-        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(emptyOpenTrades);
         _mockClient.Setup(x => x.CreateNewTrade(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
             .ReturnsAsync(true);
 
