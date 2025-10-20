@@ -113,7 +113,7 @@ public class TradeManager : ITradeManager
                     continue;
                 }
 
-                if (!await client.AddMarginInSats(options.Key, options.Passphrase, options.Secret, trade.id, oneMarginCallInSats))
+                if (!await client.AddMargin(options.Key, options.Passphrase, options.Secret, trade.id, oneMarginCallInSats))
                 {
                     logger?.LogError("Failed to add margin {Margin} sats to running trade {Id}", oneMarginCallInSats, trade.id);
                     continue;
@@ -136,7 +136,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            if (!await client.SwapUsdInBtc(options.Key, options.Passphrase, options.Secret, decimal.ToInt32(Math.Round(totalAddedMarginInUsd.Value, MidpointRounding.AwayFromZero))))
+            if (!await client.SwapUsdToBtc(options.Key, options.Passphrase, options.Secret, decimal.ToInt32(Math.Round(totalAddedMarginInUsd.Value, MidpointRounding.AwayFromZero))))
             {
                 logger?.LogError("Failed to swap {Amount}$ to btc", totalAddedMarginInUsd);
                 return;

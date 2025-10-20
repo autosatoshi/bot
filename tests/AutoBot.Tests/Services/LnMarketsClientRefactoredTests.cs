@@ -195,7 +195,7 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _client.SwapUsdInBtc(key, passphrase, secret, amount);
+        var result = await _client.SwapUsdToBtc(key, passphrase, secret, amount);
 
         // Assert
         result.Should().BeTrue();
