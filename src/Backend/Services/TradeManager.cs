@@ -7,6 +7,11 @@ namespace AutoBot.Services;
 
 public class TradeManager : ITradeManager
 {
+    private static decimal GetQuantizedPrice(decimal price, decimal factor)
+    {
+        return Math.Floor(price / factor) * factor;
+    }
+
     private readonly IMarketplaceClient _client;
     private readonly IOptionsMonitor<LnMarketsOptions> _options;
     private readonly ILogger<TradeManager> _logger;
@@ -164,8 +169,8 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            Dollar quantizedPriceInUsd = Math.Floor(data.LastPrice.Value / options.Factor) * options.Factor;
-            var runningTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
+            Dollar quantizedPriceInUsd = GetQuantizedPrice(data.LastPrice.Value, options.Factor);
+            var runningTrade = runningTrades.FirstOrDefault(x => GetQuantizedPrice(x.price.Value, options.Factor) == quantizedPriceInUsd);
             if (runningTrade != null)
             {
                 logger?.LogDebug("A running trade with the same price already exists ({Price}$)", quantizedPriceInUsd);
@@ -184,17 +189,18 @@ public class TradeManager : ITradeManager
             }
 
             var openTrades = await client.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
-            var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
+            var openTrade = openTrades.FirstOrDefault(x => GetQuantizedPrice(x.price.Value, options.Factor) == quantizedPriceInUsd);
             if (openTrade != null)
             {
                 logger?.LogDebug("An open trade with the same price already exists ({Price}$)", quantizedPriceInUsd);
                 return;
             }
 
+            // Calculate exit price based on current market price (not quantized price) for market orders
             Dollar exitPriceInUsd;
             if (!options.TargetNetPLInSats.HasValue)
             {
-                exitPriceInUsd = quantizedPriceInUsd + options.Takeprofit;
+                exitPriceInUsd = data.LastPrice + options.Takeprofit;
             }
             else
             {
@@ -202,7 +208,7 @@ public class TradeManager : ITradeManager
                 logger?.LogDebug("User fee tier {FeeTier} mapped to fee rate {FeeRate:P}", user.fee_tier, feeRate);
 
                 Satoshi targetNetPLInSats = options.TargetNetPLInSats.Value;
-                decimal adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd.Value, options.Leverage, feeRate, targetNetPLInSats.Value, TradeSide.Buy);
+                decimal adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, data.LastPrice.Value, options.Leverage, feeRate, targetNetPLInSats.Value, TradeSide.Buy);
                 Dollar roundedExitPriceInUsd = Math.Ceiling(adjustedExitPriceInUsd * 2) / 2; // Round up to nearest 0.5 for LN Markets compatibility
                 logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", roundedExitPriceInUsd, targetNetPLInSats);
 
@@ -215,7 +221,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            Satoshi requiredMarginInSats = decimal.ToInt64(Math.Ceiling(Constants.SatoshisPerBitcoin.Value / quantizedPriceInUsd.Value * options.Quantity / options.Leverage));
+            Satoshi requiredMarginInSats = decimal.ToInt64(Math.Ceiling(Constants.SatoshisPerBitcoin.Value / data.LastPrice.Value * options.Quantity / options.Leverage));
             if (requiredMarginInSats > availableMarginInSats)
             {
                 logger?.LogWarning("Insufficient margin: required {RequiredMargin} sats | available {AvailableMargin} sats", requiredMarginInSats, availableMarginInSats);
@@ -230,7 +236,7 @@ public class TradeManager : ITradeManager
                 }
             }
 
-            if (!await client.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd.Value, exitPriceInUsd.Value, options.Leverage, options.Quantity))
+            if (!await client.CreateMarketBuyOrder(options.Key, options.Passphrase, options.Secret, exitPriceInUsd.Value, options.Leverage, options.Quantity))
             {
                 logger?.LogError("Failed to create limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
                 return;
