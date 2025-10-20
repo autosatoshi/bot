@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using AutoBot.Models;
@@ -89,7 +90,7 @@ public class LnMarketsClient : IMarketplaceClient
 
     private static HttpRequestMessage CreateAuthenticatedPostRequest(string path, string key, string passphrase, string secret, string requestBody)
     {
-        var timestamp = (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var signaturePayload = $"{timestamp}POST{path}{requestBody}";
         var signature = CreateSignature(secret, signaturePayload);
 
@@ -103,7 +104,7 @@ public class LnMarketsClient : IMarketplaceClient
 
     private static HttpRequestMessage CreateAuthenticatedGetRequest(string path, string key, string passphrase, string secret, string queryParams)
     {
-        var timestamp = (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var signaturePayload = $"{timestamp}GET{path}{queryParams}";
         var signature = CreateSignature(secret, signaturePayload);
 
@@ -125,6 +126,6 @@ public class LnMarketsClient : IMarketplaceClient
         request.Headers.Add("LNM-ACCESS-KEY", key);
         request.Headers.Add("LNM-ACCESS-PASSPHRASE", passphrase);
         request.Headers.Add("LNM-ACCESS-SIGNATURE", signature);
-        request.Headers.Add("LNM-ACCESS-TIMESTAMP", timestamp.ToString());
+        request.Headers.Add("LNM-ACCESS-TIMESTAMP", timestamp.ToString(CultureInfo.InvariantCulture));
     }
 }
