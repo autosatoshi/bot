@@ -40,7 +40,7 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateLimitBuyOrder_WhenSuccessful_ShouldReturnTrue()
+    public async Task CreateNewTrade_WhenSuccessful_ShouldReturnTrue()
     {
         // Arrange
         var key = "test-key";
@@ -49,6 +49,9 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
         var takeprofit = 51000m;
         var leverage = 2;
         var quantity = 1.5;
+
+        HttpRequestMessage? capturedRequest = null;
+        string? capturedRequestBody = null;
 
         var mockResponse = new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -61,6 +64,14 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>()
             )
+            .Callback<HttpRequestMessage, CancellationToken>(async (req, _) => 
+            {
+                capturedRequest = req;
+                if (req.Content != null)
+                {
+                    capturedRequestBody = await req.Content.ReadAsStringAsync();
+                }
+            })
             .ReturnsAsync(mockResponse);
 
         // Act
@@ -69,6 +80,7 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
         // Assert
         result.Should().BeTrue();
         
+        // Verify endpoint and HTTP method
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
             Times.Once(),
@@ -77,6 +89,14 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
                 req.RequestUri!.ToString().Contains("/v2/futures")),
             ItExpr.IsAny<CancellationToken>()
         );
+
+        // Verify request body content
+        capturedRequestBody.Should().NotBeNull();
+        capturedRequestBody.Should().Contain("\"type\":\"m\"");
+        capturedRequestBody.Should().Contain("\"side\":\"b\"");
+        capturedRequestBody.Should().Contain($"\"takeprofit\":{takeprofit.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        capturedRequestBody.Should().Contain($"\"leverage\":{leverage}");
+        capturedRequestBody.Should().Contain($"\"quantity\":{quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
     }
 
     [Fact]
