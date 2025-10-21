@@ -1,5 +1,6 @@
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
+using AutoBot.Models.Units;
 using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
@@ -77,7 +78,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var oneUsdInSats = (long)Math.Round(Constants.SatoshisPerBitcoin / data.LastPrice);
+            Satoshi oneUsdInSats = decimal.ToInt64(Math.Round(Constants.SatoshisPerBitcoin / data.LastPrice));
             var marginCallTrades = runningTrades
                 .Where(x => x.leverage > 1) // Skip trades with 1x leverage
                 .Where(x => x.margin > 0) // Skip trades with invalid margin to prevent division by zero
@@ -89,17 +90,17 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var oneMarginCallInSats = decimal.ToInt64(Math.Round(oneUsdInSats * options.AddMarginInUsd, MidpointRounding.AwayFromZero));
+            Satoshi oneMarginCallInSats = decimal.ToInt64(Math.Round(oneUsdInSats * options.AddMarginInUsd, MidpointRounding.AwayFromZero));
             if (oneMarginCallInSats * marginCallTrades.Count > user.balance)
             {
                 logger?.LogWarning("Total amount for margin calls exceeds the available balance. Defaulting to FIFO margin call execution.");
             }
 
-            var totalAddedMarginInSats = 0m;
-            var totalAddedMarginInUsd = 0m;
+            Satoshi totalAddedMarginInSats = 0;
+            Dollar totalAddedMarginInUsd = 0;
             foreach (var trade in marginCallTrades)
             {
-                var maxMarginInSats = decimal.ToInt64(Math.Round((Constants.SatoshisPerBitcoin / trade.price) * trade.quantity, MidpointRounding.AwayFromZero));
+                Satoshi maxMarginInSats = decimal.ToInt64(Math.Round((Constants.SatoshisPerBitcoin / trade.price) * trade.quantity, MidpointRounding.AwayFromZero));
                 if (oneMarginCallInSats + trade.margin > maxMarginInSats)
                 {
                     logger?.LogWarning("Margin call of {MarginCall} sats would exceed maximum margin of {MaxMargin} sats for trade {Id}", oneMarginCallInSats, maxMarginInSats, trade.id);
@@ -168,7 +169,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var quantizedPriceInUsd = Math.Floor(data.LastPrice / options.Factor) * options.Factor;
+            Dollar quantizedPriceInUsd = Math.Floor(data.LastPrice / options.Factor) * options.Factor;
             var runningTrade = runningTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
             if (runningTrade != null)
             {
@@ -177,10 +178,10 @@ public class TradeManager : ITradeManager
             }
 
             // Only count running trade margins - open trades will be canceled and their margin freed
-            var isolatedMarginInSats = Math.Round(runningTrades.Select(x => x.margin + x.maintenance_margin).Sum());
-            var availableMarginInSats = user.balance - isolatedMarginInSats;
+            Satoshi isolatedMarginInSats = decimal.ToInt64(Math.Round(runningTrades.Select(x => x.margin + x.maintenance_margin).Sum()));
+            Satoshi availableMarginInSats = decimal.ToInt64(user.balance) - isolatedMarginInSats;
 
-            var oneUsdInSats = Constants.SatoshisPerBitcoin / data.LastPrice;
+            Satoshi oneUsdInSats = decimal.ToInt64(Constants.SatoshisPerBitcoin / data.LastPrice);
             if (availableMarginInSats <= oneUsdInSats)
             {
                 logger?.LogDebug("No available margin");
@@ -195,7 +196,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            decimal exitPriceInUsd;
+            Dollar exitPriceInUsd;
             if (!options.TargetNetPLInSats.HasValue)
             {
                 exitPriceInUsd = quantizedPriceInUsd + options.Takeprofit;
@@ -205,9 +206,9 @@ public class TradeManager : ITradeManager
                 var feeRate = GetFeeRateFromTier(user.fee_tier);
                 logger?.LogDebug("User fee tier {FeeTier} mapped to fee rate {FeeRate:P}", user.fee_tier, feeRate);
 
-                var targetNetPLInSats = options.TargetNetPLInSats.Value;
-                var adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
-                var roundedExitPriceInUsd = Math.Ceiling(adjustedExitPriceInUsd * 2) / 2; // Round up to nearest 0.5 for LN Markets compatibility
+                Satoshi targetNetPLInSats = options.TargetNetPLInSats.Value;
+                Dollar adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd, options.Leverage, feeRate, targetNetPLInSats, TradeSide.Buy);
+                Dollar roundedExitPriceInUsd = Math.Ceiling(adjustedExitPriceInUsd * 2) / 2; // Round up to nearest 0.5 for LN Markets compatibility
                 logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", roundedExitPriceInUsd, targetNetPLInSats);
 
                 exitPriceInUsd = roundedExitPriceInUsd;
@@ -219,7 +220,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var requiredMarginInSats = (Constants.SatoshisPerBitcoin / quantizedPriceInUsd) * options.Quantity / options.Leverage;
+            Satoshi requiredMarginInSats = decimal.ToInt64((Constants.SatoshisPerBitcoin / quantizedPriceInUsd) * options.Quantity / options.Leverage);
             if (requiredMarginInSats > availableMarginInSats)
             {
                 logger?.LogWarning("Insufficient margin: required {RequiredMargin} sats | available {AvailableMargin} sats", requiredMarginInSats, availableMarginInSats);
