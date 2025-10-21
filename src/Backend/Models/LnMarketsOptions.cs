@@ -47,6 +47,15 @@ public class LnMarketsOptions
     [Range(0, long.MaxValue)]
     public long? TargetNetPLInSats { get; set; } = null;
 
+    // Batch Grid Control Configuration
+    public bool EnableBatching { get; set; } = false;
+
+    [Range(1, int.MaxValue)]
+    public int BatchFactor { get; set; } = 2000;
+
+    [Range(1, int.MaxValue)]
+    public int MaxTradesPerBatch { get; set; } = 3;
+
     // WebSocket Configuration
     [Range(1, int.MaxValue)]
     public int ReconnectDelaySeconds { get; set; } = 15;

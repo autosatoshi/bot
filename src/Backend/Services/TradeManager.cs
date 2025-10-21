@@ -183,6 +183,17 @@ public class TradeManager : ITradeManager
                 return;
             }
 
+            if (options.EnableBatching)
+            {
+                var batchQuantizedPrice = GetQuantizedPrice(data.LastPrice, options.BatchFactor);
+                var tradesInCurrentBatch = runningTrades.Count(x => GetQuantizedPrice(x.price, options.BatchFactor) == batchQuantizedPrice);
+                if (tradesInCurrentBatch >= options.MaxTradesPerBatch)
+                {
+                    logger?.LogDebug("Maximum trades reached for batch at {BatchPrice}$ ({TradesInBatch}/{MaxTradesPerBatch})", batchQuantizedPrice, tradesInCurrentBatch, options.MaxTradesPerBatch);
+                    return;
+                }
+            }
+
             Satoshi isolatedMarginInSats = runningTrades.Select(x => x.margin.Value + x.maintenance_margin.Value).Sum();
             Satoshi availableMarginInSats = user.balance - isolatedMarginInSats;
             Satoshi oneUsdInSats = decimal.ToInt64(Math.Round(Constants.SatoshisPerBitcoin.Value / data.LastPrice.Value));
