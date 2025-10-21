@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using AutoBot.Models.Units;
 
 namespace AutoBot.Models.LnMarkets;
 
@@ -8,7 +9,7 @@ public class LastPriceData
     public string? Time { get; set; }
 
     [JsonPropertyName("lastPrice")]
-    public decimal LastPrice { get; set; }
+    public Dollar LastPrice { get; set; }
 
     [JsonPropertyName("lastTickDirection")]
     public required string LastTickDirection { get; set; }

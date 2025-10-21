@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace AutoBot.Models.Units;
 
 public readonly struct Satoshi
@@ -10,5 +12,5 @@ public readonly struct Satoshi
 
     public static implicit operator Satoshi(long value) => new(value);
 
-    public override string ToString() => _value.ToString();
+    public override string ToString() => _value.ToString(CultureInfo.InvariantCulture);
 }
