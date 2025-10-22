@@ -12,7 +12,7 @@ public class UserModel
 
     public required string username { get; set; }
 
-    public decimal synthetic_usd_balance { get; set; }
+    public Dollar synthetic_usd_balance { get; set; }
 
     public string? linkingpublickey { get; set; }
 

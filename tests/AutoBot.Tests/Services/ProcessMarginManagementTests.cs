@@ -78,7 +78,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance unchanged
         _defaultUser.balance.Value.Should().Be(1000000); // No margin added
-        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(5000m); // No swap performed
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance updates
         _defaultUser.balance.Value.Should().Be(1000000);
-        _defaultUser.synthetic_usd_balance.Should().Be(4990);
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(4990);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance unchanged
         _defaultUser.balance.Value.Should().Be(1000000); // No margin added
-        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(5000m); // No swap performed
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance unchanged
         _defaultUser.balance.Value.Should().Be(1000000); // No margin added
-        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(5000m); // No swap performed
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance unchanged
         _defaultUser.balance.Value.Should().Be(1000000L); // No margin added
-        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(5000m); // No swap performed
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance updates
         userWithLowBalance.balance.Value.Should().Be(expectedFinalBalance); // Balance should be reduced by margin added
-        userWithLowBalance.synthetic_usd_balance.Should().Be(expectedFinalUsdBalance); // USD balance unchanged (no swap due to insufficient balance)
+        userWithLowBalance.synthetic_usd_balance.Value.Should().Be(expectedFinalUsdBalance); // USD balance unchanged (no swap due to insufficient balance)
     }
 
     [Fact]
@@ -330,7 +330,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance updates
         _defaultUser.balance.Value.Should().Be(1000000);
-        _defaultUser.synthetic_usd_balance.Should().Be(4980);
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(4980);
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance unchanged
         _defaultUser.balance.Value.Should().Be(1000000); // No margin added due to API failure
-        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(5000m); // No swap performed
     }
 
     [Fact]
@@ -395,7 +395,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance unchanged
         _defaultUser.balance.Value.Should().Be(1000000); // No margin added
-        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(5000m); // No swap performed
     }
 
     [Fact]
@@ -462,7 +462,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance updates
         userWithLimitedBalance.balance.Value.Should().Be(45000);
-        userWithLimitedBalance.synthetic_usd_balance.Should().Be(4980);
+        userWithLimitedBalance.synthetic_usd_balance.Value.Should().Be(4980);
     }
 
     [Fact]
@@ -513,7 +513,7 @@ public class ProcessMarginManagementTests
         
         // Assert balance unchanged
         _defaultUser.balance.Value.Should().Be(1000000); // No margin added - all trades filtered out by leverage check
-        _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(5000m); // No swap performed
     }
 
     [Fact]
@@ -567,6 +567,6 @@ public class ProcessMarginManagementTests
         
         // Assert balance updates
         _defaultUser.balance.Value.Should().Be(1000000);
-        _defaultUser.synthetic_usd_balance.Should().Be(4990m);
+        _defaultUser.synthetic_usd_balance.Value.Should().Be(4990m);
     }
 }
