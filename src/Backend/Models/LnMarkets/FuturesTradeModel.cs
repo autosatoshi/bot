@@ -1,3 +1,5 @@
+using AutoBot.Models.Units;
+
 namespace AutoBot.Models.LnMarkets;
 
 public class FuturesTradeModel
@@ -10,15 +12,15 @@ public class FuturesTradeModel
 
     public required string side { get; set; }
 
-    public decimal opening_fee { get; set; }
+    public Satoshi opening_fee { get; set; }
 
-    public decimal closing_fee { get; set; }
+    public Satoshi closing_fee { get; set; }
 
-    public decimal maintenance_margin { get; set; }
+    public Satoshi maintenance_margin { get; set; }
 
     public decimal quantity { get; set; }
 
-    public decimal margin { get; set; }
+    public Satoshi margin { get; set; }
 
     public decimal leverage { get; set; }
 
@@ -32,7 +34,7 @@ public class FuturesTradeModel
 
     public decimal? exit_price { get; set; }
 
-    public decimal pl { get; set; }
+    public Satoshi pl { get; set; }
 
     public long creation_ts { get; set; }
 
@@ -50,5 +52,5 @@ public class FuturesTradeModel
 
     public long last_update_ts { get; set; }
 
-    public decimal sum_carry_fees { get; set; }
+    public Satoshi sum_carry_fees { get; set; }
 }

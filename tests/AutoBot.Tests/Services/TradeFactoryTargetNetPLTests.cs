@@ -21,8 +21,8 @@ public class TradeFactoryTargetNetPLTests
         decimal leverage, 
         decimal feeRate, 
         TradeSide side,
-        decimal targetNetPLInSats,
-        decimal expectedExitPriceInSats)
+        long targetNetPLInSats,
+        decimal expectedExitPriceInUsd)
     {
         // Act
         var actualExitPrice = TradeFactory.CalculateExitPriceForTargetNetPL(
@@ -30,8 +30,8 @@ public class TradeFactoryTargetNetPLTests
         
         // Assert - Compare truncated to 3 decimal places
         var truncatedActual = Math.Truncate(actualExitPrice * 1000) / 1000;
-        truncatedActual.Should().Be(expectedExitPriceInSats,
-            $"Expected exit price to be {expectedExitPriceInSats} (truncated to 3 decimals), but got {truncatedActual}. " +
+        truncatedActual.Should().Be(expectedExitPriceInUsd,
+            $"Expected exit price to be {expectedExitPriceInUsd} (truncated to 3 decimals), but got {truncatedActual}. " +
             $"Details: quantity={quantityInUsd}, entry={entryPriceInUsd}, leverage={leverage}, feeRate={feeRate}, targetNetPL={targetNetPLInSats}, side={side}");
     }
 }

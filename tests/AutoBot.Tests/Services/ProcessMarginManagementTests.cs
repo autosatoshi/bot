@@ -1,5 +1,6 @@
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
+using AutoBot.Models.Units;
 using AutoBot.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -72,11 +73,11 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance unchanged
-        _defaultUser.balance.Should().Be(1000000); // No margin added
+        _defaultUser.balance.Value.Should().Be(1000000); // No margin added
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
 
@@ -91,14 +92,14 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
         _mockClient.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<long>()))
+        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<Satoshi>()))
             .ReturnsAsync(true);
         _mockClient.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
@@ -109,12 +110,12 @@ public class ProcessMarginManagementTests
         // Assert
         // oneUsdInSats = 100,000,000 / 50,000 = 2,000 sats per USD
         // oneMarginCallInSats = 2,000 * 10 = 20,000 sats  
-        var expectedAddedMargin = 20000;
+        var expectedAddedMargin = 20000L;
         _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", expectedAddedMargin), Times.Once);
         _mockClient.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 10), Times.Once);
         
         // Assert balance updates
-        _defaultUser.balance.Should().Be(1000000);
+        _defaultUser.balance.Value.Should().Be(1000000);
         _defaultUser.synthetic_usd_balance.Should().Be(4990);
     }
 
@@ -143,11 +144,11 @@ public class ProcessMarginManagementTests
         // Assert
         // Loss calculation: (-200 / 1000) * 100 = -20%
         // Since -20% > -50% (MaxLossInPercent), the condition loss <= options.MaxLossInPercent is false
-        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance unchanged
-        _defaultUser.balance.Should().Be(1000000); // No margin added
+        _defaultUser.balance.Value.Should().Be(1000000); // No margin added
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
 
@@ -166,7 +167,7 @@ public class ProcessMarginManagementTests
             id: "trade-1");
         
         // Set invalid margin for this test
-        runningTrade.margin = 0m;
+        runningTrade.margin = 0L;
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -177,11 +178,11 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance unchanged
-        _defaultUser.balance.Should().Be(1000000); // No margin added
+        _defaultUser.balance.Value.Should().Be(1000000); // No margin added
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
 
@@ -200,23 +201,23 @@ public class ProcessMarginManagementTests
             id: "trade-1");
         
         // Set invalid negative margin for this test
-        runningTrade.margin = -100m;
+        runningTrade.margin = -100L;
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
-        
+
         _mockClient.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-
+            
         // Act
         await CallProcessMarginManagement(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
         _mockClient.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
-        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance unchanged
-        _defaultUser.balance.Should().Be(1000000); // No margin added
+        _defaultUser.balance.Value.Should().Be(1000000L); // No margin added
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
 
@@ -247,7 +248,7 @@ public class ProcessMarginManagementTests
         
         _mockClient.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<long>()))
+        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<Satoshi>()))
             .ReturnsAsync(true);
 
         // Act
@@ -264,7 +265,7 @@ public class ProcessMarginManagementTests
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance updates
-        userWithLowBalance.balance.Should().Be(expectedFinalBalance); // Balance should be reduced by margin added
+        userWithLowBalance.balance.Value.Should().Be(expectedFinalBalance); // Balance should be reduced by margin added
         userWithLowBalance.synthetic_usd_balance.Should().Be(expectedFinalUsdBalance); // USD balance unchanged (no swap due to insufficient balance)
     }
 
@@ -312,7 +313,7 @@ public class ProcessMarginManagementTests
         
         _mockClient.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<long>()))
+        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<Satoshi>()))
             .ReturnsAsync(true);
         _mockClient.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
@@ -324,11 +325,11 @@ public class ProcessMarginManagementTests
         const long expectedMarginPerTrade = 10100;
         _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", expectedMarginPerTrade), Times.Once);
         _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", expectedMarginPerTrade), Times.Once);
-        _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-3", It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-3", It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 20), Times.Once); // 2 trades * 10 USD
         
         // Assert balance updates
-        _defaultUser.balance.Should().Be(1000000);
+        _defaultUser.balance.Value.Should().Be(1000000);
         _defaultUser.synthetic_usd_balance.Should().Be(4980);
     }
 
@@ -356,11 +357,11 @@ public class ProcessMarginManagementTests
 
         // Assert
         _mockClient.Verify(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret), Times.Once);
-        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance unchanged
-        _defaultUser.balance.Should().Be(1000000); // No margin added due to API failure
+        _defaultUser.balance.Value.Should().Be(1000000); // No margin added due to API failure
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
 
@@ -378,7 +379,7 @@ public class ProcessMarginManagementTests
             id: "trade-1");
         
         // Set high existing margin to ensure maxMargin calculation results in 0 additional margin
-        runningTrade.margin = 2000m;
+        runningTrade.margin = 2000L;
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
         
@@ -389,11 +390,11 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert - No margin should be added since calculated margin is 0
-        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance unchanged
-        _defaultUser.balance.Should().Be(1000000); // No margin added
+        _defaultUser.balance.Value.Should().Be(1000000); // No margin added
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
 
@@ -444,7 +445,7 @@ public class ProcessMarginManagementTests
         
         _mockClient.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<long>()))
+        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<Satoshi>()))
             .ReturnsAsync(true);
         _mockClient.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
@@ -456,11 +457,11 @@ public class ProcessMarginManagementTests
         const long expectedMarginPerTrade = 20000;
         _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", expectedMarginPerTrade), Times.Once);
         _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-2", expectedMarginPerTrade), Times.Once);
-        _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-3", It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-3", It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 20), Times.Once); // 2 trades * 10 USD
         
         // Assert balance updates
-        userWithLimitedBalance.balance.Should().Be(45000);
+        userWithLimitedBalance.balance.Value.Should().Be(45000);
         userWithLimitedBalance.synthetic_usd_balance.Should().Be(4980);
     }
 
@@ -507,11 +508,11 @@ public class ProcessMarginManagementTests
         await CallProcessMarginManagement(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
 
         // Assert
-        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Satoshi>()), Times.Never);
         _mockClient.Verify(x => x.SwapUsdInBtc(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         
         // Assert balance unchanged
-        _defaultUser.balance.Should().Be(1000000); // No margin added - all trades filtered out by leverage check
+        _defaultUser.balance.Value.Should().Be(1000000); // No margin added - all trades filtered out by leverage check
         _defaultUser.synthetic_usd_balance.Should().Be(5000m); // No swap performed
     }
 
@@ -543,7 +544,7 @@ public class ProcessMarginManagementTests
         
         _mockClient.Setup(x => x.GetRunningTrades(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret))
             .ReturnsAsync(runningTrades);
-        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<long>()))
+        _mockClient.Setup(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<string>(), It.IsAny<Satoshi>()))
             .ReturnsAsync(true);
         _mockClient.Setup(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, It.IsAny<int>()))
             .ReturnsAsync(true);
@@ -556,7 +557,7 @@ public class ProcessMarginManagementTests
         
         // trade-1: max margin = (100,000,000 / 49,000) * 1 = ~2,041 sats
         // oneMarginCallInSats + trade.margin = 20,000 + 1,000 = 21,000 > 2,041 (exceeds max margin)
-        _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", It.IsAny<long>()), Times.Never);
+        _mockClient.Verify(x => x.AddMarginInSats(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "trade-1", It.IsAny<Satoshi>()), Times.Never);
         
         // trade-2: max margin = (100,000,000 / 49,000) * 100 = ~204,081 sats  
         // oneMarginCallInSats + trade.margin = 20,000 + 1,000 = 21,000 < 204,081 (within max margin)
@@ -565,7 +566,7 @@ public class ProcessMarginManagementTests
         _mockClient.Verify(x => x.SwapUsdInBtc(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 10), Times.Once); // 1 trade * 10 USD
         
         // Assert balance updates
-        _defaultUser.balance.Should().Be(1000000);
+        _defaultUser.balance.Value.Should().Be(1000000);
         _defaultUser.synthetic_usd_balance.Should().Be(4990m);
     }
 }

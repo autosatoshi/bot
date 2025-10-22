@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
+using AutoBot.Models.Units;
 using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
@@ -19,7 +20,7 @@ public class LnMarketsClient : IMarketplaceClient
         _logger = logger;
     }
 
-    public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, long amountInSats)
+    public async Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, Satoshi amountInSats)
     {
         var method = "POST";
         var path = "/v2/futures/add-margin";

@@ -1,3 +1,5 @@
+using AutoBot.Models.Units;
+
 namespace AutoBot.Models.LnMarkets;
 
 public class UserModel
@@ -6,7 +8,7 @@ public class UserModel
 
     public required string role { get; set; }
 
-    public decimal balance { get; set; }
+    public Satoshi balance { get; set; }
 
     public required string username { get; set; }
 

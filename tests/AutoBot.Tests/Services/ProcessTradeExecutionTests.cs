@@ -575,11 +575,11 @@ public class ProcessTradeExecutionTests
         decimal exitPrice,
         decimal leverage,
         TradeSide side,
-        decimal expectedMargin,
+        long expectedMargin,
         decimal expectedLiquidation,
-        decimal expectedOpeningFee,
-        decimal expectedClosingFee,
-        decimal expectedPL)
+        long expectedOpeningFee,
+        long expectedClosingFee,
+        long expectedPL)
     {
         // Act
         var trade = TradeFactory.CreateTrade(

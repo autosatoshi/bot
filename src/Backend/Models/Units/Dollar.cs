@@ -1,6 +1,6 @@
 using System.Globalization;
-using System.Text.Json;
 using System.Text.Json.Serialization;
+using AutoBot.Models.Units.Converters;
 
 namespace AutoBot.Models.Units;
 
@@ -16,17 +16,4 @@ public readonly struct Dollar
     public static implicit operator Dollar(decimal value) => new(value);
 
     public override string ToString() => _value.ToString("F2", CultureInfo.InvariantCulture);
-}
-
-public class DollarJsonConverter : JsonConverter<Dollar>
-{
-    public override Dollar Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        return new Dollar(reader.GetDecimal());
-    }
-
-    public override void Write(Utf8JsonWriter writer, Dollar value, JsonSerializerOptions options)
-    {
-        writer.WriteNumberValue((decimal)value);
-    }
 }
