@@ -9,7 +9,15 @@ public readonly struct Dollar
 {
     private readonly decimal _value;
 
-    public Dollar(decimal value) => _value = value;
+    public Dollar(decimal value)
+    {
+        if (Math.Round(value, 2) != value)
+        {
+            throw new ArgumentException($"Dollar amounts can only have up to 2 decimal places. Got: {value}");
+        }
+
+        _value = value;
+    }
 
     public static implicit operator decimal(Dollar dollar) => dollar._value;
 
