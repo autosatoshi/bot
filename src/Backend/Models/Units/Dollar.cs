@@ -15,5 +15,8 @@ public readonly struct Dollar
 
     public static implicit operator Dollar(decimal value) => new(value);
 
+    // Explicit access to value for when you really need it
+    public decimal Value => _value;
+
     public override string ToString() => _value.ToString("F2", CultureInfo.InvariantCulture);
 }

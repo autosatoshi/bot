@@ -591,13 +591,13 @@ public class ProcessTradeExecutionTests
             TradeState.Open);
 
         // Assert
-        Assert.Equal(quantity, trade.quantity);
-        Assert.Equal(entryPrice, trade.price);
+        Assert.Equal(quantity, (decimal)trade.quantity);
+        Assert.Equal(entryPrice, (decimal)trade.price);
         Assert.Equal(leverage, trade.leverage);
         Assert.Equal(side.ToString().ToLower(), trade.side);
         Assert.Equal(expectedMargin, trade.margin);
         Assert.Equal(expectedPL, trade.pl);
-        Assert.Equal(expectedLiquidation, trade.liquidation);
+        Assert.Equal(expectedLiquidation, (decimal)trade.liquidation);
         Assert.Equal(expectedOpeningFee, trade.opening_fee);
         Assert.Equal(expectedClosingFee, trade.closing_fee);
     }

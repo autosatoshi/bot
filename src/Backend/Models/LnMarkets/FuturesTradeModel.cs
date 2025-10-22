@@ -18,21 +18,21 @@ public class FuturesTradeModel
 
     public Satoshi maintenance_margin { get; set; }
 
-    public decimal quantity { get; set; }
+    public Dollar quantity { get; set; }
 
     public Satoshi margin { get; set; }
 
     public decimal leverage { get; set; }
 
-    public decimal price { get; set; }
+    public Dollar price { get; set; }
 
-    public decimal liquidation { get; set; }
+    public Dollar liquidation { get; set; }
 
-    public decimal stoploss { get; set; }
+    public Dollar stoploss { get; set; }
 
-    public decimal takeprofit { get; set; }
+    public Dollar takeprofit { get; set; }
 
-    public decimal? exit_price { get; set; }
+    public Dollar? exit_price { get; set; }
 
     public Satoshi pl { get; set; }
 

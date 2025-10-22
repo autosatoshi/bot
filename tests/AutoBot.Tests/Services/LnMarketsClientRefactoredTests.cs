@@ -198,7 +198,7 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
         result.Should().NotBeNull();
         result.Should().HaveCount(2);
         result.First().id.Should().Be("1");
-        result.First().price.Should().Be(50000m);
+        result.First().price.Value.Should().Be(50000m);
         
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
