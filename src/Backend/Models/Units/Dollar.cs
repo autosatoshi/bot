@@ -11,7 +11,7 @@ public readonly struct Dollar
 
     public Dollar(decimal value)
     {
-        if (Math.Round(value, 2) != value)
+        if ((value * 100) % 1 != 0)
         {
             throw new ArgumentException($"Dollar amounts can only have up to 2 decimal places. Got: {value}");
         }
