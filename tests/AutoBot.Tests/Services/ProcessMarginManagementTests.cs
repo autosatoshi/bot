@@ -130,7 +130,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -20m, // -20% loss (exceeds -50% limit: -20% > -50%)
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
@@ -163,7 +163,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -10m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
         
         // Set invalid margin for this test
@@ -197,7 +197,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -10m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
         
         // Set invalid negative margin for this test
@@ -241,7 +241,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m, // -60% loss (worse than -50% threshold, so margin should be added)
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
@@ -344,7 +344,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -20m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
 
         var runningTrades = new List<FuturesTradeModel> { runningTrade };
@@ -418,7 +418,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
 
         var trade2 = TradeFactory.CreateLosingTrade(
@@ -428,7 +428,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-2");
 
         var trade3 = TradeFactory.CreateLosingTrade(
@@ -438,7 +438,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-3");
 
         var runningTrades = new List<FuturesTradeModel> { trade1, trade2, trade3 };
@@ -476,7 +476,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
 
         var trade2 = TradeFactory.CreateLosingTrade(
@@ -486,7 +486,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-2");
 
         var trade3 = TradeFactory.CreateLosingTrade(
@@ -496,7 +496,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-3");
 
         var runningTrades = new List<FuturesTradeModel> { trade1, trade2, trade3 };
@@ -527,7 +527,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-1");
 
         var trade2 = TradeFactory.CreateLosingTrade(
@@ -537,7 +537,7 @@ public class ProcessMarginManagementTests
             side: TradeSide.Buy,
             lossPercentage: -60m,
             TradeState.Running,
-            marginInSats: 1000m,
+            marginInSats: 1000L,
             id: "trade-2");
 
         var runningTrades = new List<FuturesTradeModel> { trade1, trade2 };

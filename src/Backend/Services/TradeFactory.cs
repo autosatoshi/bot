@@ -24,7 +24,7 @@ public static class TradeFactory
         return quantityInUsd * ((1 / entryPriceInUsd) - (1 / currentPriceInUsd)) * Constants.SatoshisPerBitcoin.Value;
     }
 
-    public static decimal CalculateActualPriceFromPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal plInSats)
+    public static decimal CalculateActualPriceFromPL(decimal quantityInUsd, decimal entryPriceInUsd, long plInSats)
     {
         if (quantityInUsd <= 0)
         {
@@ -183,8 +183,8 @@ public static class TradeFactory
             uid = uid,
             type = "futures",
             side = side.ToString().ToLower(),
-            margin = decimal.ToInt64(Math.Floor(marginInSats)), // TODO
-            pl = decimal.ToInt64(RoundPLInSats(plInSats)), // TODO
+            margin = decimal.ToInt64(Math.Floor(marginInSats)),
+            pl = decimal.ToInt64(RoundPLInSats(plInSats)),
             price = entryPriceInUsd,
             quantity = quantityInUsd,
             leverage = leverage,
@@ -198,8 +198,8 @@ public static class TradeFactory
             closed = tradeFlags.Closed,
             last_update_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             opening_fee = openingFeeInSats,
-            closing_fee = closingFeeInSats, // TODO
-            maintenance_margin = decimal.ToInt64(Math.Round(maintenanceMarginInSats, 0)), // TODO
+            closing_fee = closingFeeInSats,
+            maintenance_margin = decimal.ToInt64(Math.Round(maintenanceMarginInSats, 0)),
             sum_carry_fees = 0L,
         };
     }
@@ -211,7 +211,7 @@ public static class TradeFactory
         TradeSide side,
         decimal lossPercentage,
         TradeState state,
-        decimal? marginInSats = null,
+        long? marginInSats = null,
         string? id = null,
         string uid = "default-uid",
         decimal feeRate = 0.001m)
@@ -278,8 +278,8 @@ public static class TradeFactory
             uid = uid,
             type = "futures",
             side = side.ToString().ToLower(),
-            margin = decimal.ToInt64(Math.Floor(calculatedMarginInSats)), // TODO
-            pl = decimal.ToInt64(RoundPLInSats(plInSats)), // TODO
+            margin = decimal.ToInt64(Math.Floor(calculatedMarginInSats)),
+            pl = decimal.ToInt64(RoundPLInSats(plInSats)),
             price = entryPriceInUsd,
             quantity = quantityInUsd,
             leverage = leverage,
