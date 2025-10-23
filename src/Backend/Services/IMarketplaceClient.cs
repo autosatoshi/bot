@@ -1,4 +1,5 @@
 using AutoBot.Models.LnMarkets;
+using AutoBot.Models.Units;
 
 namespace AutoBot.Services;
 
@@ -14,7 +15,7 @@ public interface IMarketplaceClient
 
     Task<bool> SwapUsdInBtc(string key, string passphrase, string secret, int amount);
 
-    Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, long amountInSats);
+    Task<bool> AddMarginInSats(string key, string passphrase, string secret, string id, Satoshi amountInSats);
 
     Task<bool> Cancel(string key, string passphrase, string secret, string id);
 }

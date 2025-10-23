@@ -44,8 +44,8 @@ public class LnMarketsOptions
     [Range(-100, 0)]
     public int MaxLossInPercent { get; set; } = -50;
 
-    [Range(0, int.MaxValue)]
-    public int? TargetNetPLInSats { get; set; } = null;
+    [Range(0, long.MaxValue)]
+    public long? TargetNetPLInSats { get; set; } = null;
 
     // WebSocket Configuration
     [Range(1, int.MaxValue)]

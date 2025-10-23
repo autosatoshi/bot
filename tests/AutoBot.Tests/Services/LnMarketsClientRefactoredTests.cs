@@ -135,22 +135,22 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
                 side = "buy", 
                 price = 50000m, 
                 quantity = 1.0m,
-                margin = 1000m,
+                margin = 1000L,
                 leverage = 2m,
                 liquidation = 45000m,
                 stoploss = 0m,
                 takeprofit = 55000m,
-                pl = 0m,
+                pl = 0L,
                 creation_ts = 1234567890,
                 open = true,
                 running = false,
                 canceled = false,
                 closed = false,
                 last_update_ts = 1234567890,
-                sum_carry_fees = 0m,
-                opening_fee = 10m,
-                closing_fee = 0m,
-                maintenance_margin = 100m
+                sum_carry_fees = 0L,
+                opening_fee = 10L,
+                closing_fee = 0L,
+                maintenance_margin = 100L
             },
             new FuturesTradeModel { 
                 id = "2", 
@@ -159,22 +159,22 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
                 side = "buy", 
                 price = 51000m, 
                 quantity = 0.5m,
-                margin = 500m,
+                margin = 500L,
                 leverage = 2m,
                 liquidation = 46000m,
                 stoploss = 0m,
                 takeprofit = 56000m,
-                pl = 0m,
+                pl = 0L,
                 creation_ts = 1234567891,
                 open = true,
                 running = false,
                 canceled = false,
                 closed = false,
                 last_update_ts = 1234567891,
-                sum_carry_fees = 0m,
-                opening_fee = 5m,
-                closing_fee = 0m,
-                maintenance_margin = 50m
+                sum_carry_fees = 0L,
+                opening_fee = 5L,
+                closing_fee = 0L,
+                maintenance_margin = 50L
             }
         };
 
@@ -198,7 +198,7 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
         result.Should().NotBeNull();
         result.Should().HaveCount(2);
         result.First().id.Should().Be("1");
-        result.First().price.Should().Be(50000m);
+        result.First().price.Value.Should().Be(50000m);
         
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",

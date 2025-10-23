@@ -4,8 +4,6 @@ namespace AutoBot.Services;
 
 public static class TradeFactory
 {
-    private const decimal SatoshisPerBitcoin = 100_000_000m;
-
     public static decimal CalculatePLFromActualPriceInSats(decimal quantityInUsd, decimal entryPriceInUsd, decimal currentPriceInUsd)
     {
         if (quantityInUsd <= 0)
@@ -23,10 +21,10 @@ public static class TradeFactory
             throw new ArgumentOutOfRangeException(nameof(currentPriceInUsd), "Current price must be greater than 0");
         }
 
-        return quantityInUsd * ((1 / entryPriceInUsd) - (1 / currentPriceInUsd)) * SatoshisPerBitcoin;
+        return quantityInUsd * ((1 / entryPriceInUsd) - (1 / currentPriceInUsd)) * Constants.SatoshisPerBitcoin.Value;
     }
 
-    public static decimal CalculateActualPriceFromPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal plInSats)
+    public static decimal CalculateActualPriceFromPL(decimal quantityInUsd, decimal entryPriceInUsd, long plInSats)
     {
         if (quantityInUsd <= 0)
         {
@@ -38,12 +36,12 @@ public static class TradeFactory
             throw new ArgumentOutOfRangeException(nameof(entryPriceInUsd), "Entry price must be greater than 0");
         }
 
-        if (quantityInUsd * SatoshisPerBitcoin == 0)
+        if (quantityInUsd * Constants.SatoshisPerBitcoin.Value == 0)
         {
             throw new ArgumentException("Quantity multiplied by SatoshisPerBitcoin cannot be zero", nameof(quantityInUsd));
         }
 
-        var plNormalizedInSats = plInSats / (quantityInUsd * SatoshisPerBitcoin);
+        var plNormalizedInSats = plInSats / (quantityInUsd * Constants.SatoshisPerBitcoin.Value);
         var inverseCurrentPriceInUsd = (1 / entryPriceInUsd) - plNormalizedInSats;
 
         if (inverseCurrentPriceInUsd <= 0)
@@ -82,14 +80,14 @@ public static class TradeFactory
     /// <param name="targetNetPLInSats">The target net profit/loss in satoshis AFTER all fees.</param>
     /// <param name="side">The trade side (Buy or Sell).</param>
     /// <returns>The exact exit price in USD needed to achieve the target net P&L.</returns>
-    public static decimal CalculateExitPriceForTargetNetPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal leverage, decimal feeRate, decimal targetNetPLInSats, TradeSide side)
+    public static decimal CalculateExitPriceForTargetNetPL(decimal quantityInUsd, decimal entryPriceInUsd, decimal leverage, decimal feeRate, long targetNetPLInSats, TradeSide side)
     {
         if (quantityInUsd <= 0 || entryPriceInUsd <= 0 || leverage <= 0 || feeRate < 0)
         {
             throw new ArgumentOutOfRangeException("All parameters must be positive");
         }
 
-        var targetNormalizedInUsd = targetNetPLInSats / (quantityInUsd * SatoshisPerBitcoin);
+        var targetNormalizedInUsd = targetNetPLInSats / (quantityInUsd * Constants.SatoshisPerBitcoin.Value);
         var entryPriceInverseInUsd = 1m / entryPriceInUsd;
 
         decimal exitPriceInUsd;
@@ -154,7 +152,7 @@ public static class TradeFactory
         }
 
         var marginInUsd = quantityInUsd / leverage;
-        var marginInSats = marginInUsd * (SatoshisPerBitcoin / entryPriceInUsd);
+        var marginInSats = marginInUsd * (Constants.SatoshisPerBitcoin.Value / entryPriceInUsd);
 
         var maintenanceMarginInSats = marginInSats * 0.05m;
 
@@ -185,8 +183,8 @@ public static class TradeFactory
             uid = uid,
             type = "futures",
             side = side.ToString().ToLower(),
-            margin = Math.Floor(marginInSats),
-            pl = RoundPLInSats(plInSats),
+            margin = decimal.ToInt64(Math.Floor(marginInSats)),
+            pl = decimal.ToInt64(RoundPLInSats(plInSats)),
             price = entryPriceInUsd,
             quantity = quantityInUsd,
             leverage = leverage,
@@ -200,9 +198,9 @@ public static class TradeFactory
             closed = tradeFlags.Closed,
             last_update_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             opening_fee = openingFeeInSats,
-            closing_fee = Math.Round(closingFeeInSats, 0),
-            maintenance_margin = Math.Round(maintenanceMarginInSats, 0),
-            sum_carry_fees = 0m,
+            closing_fee = closingFeeInSats,
+            maintenance_margin = decimal.ToInt64(Math.Round(maintenanceMarginInSats, 0)),
+            sum_carry_fees = 0L,
         };
     }
 
@@ -213,7 +211,7 @@ public static class TradeFactory
         TradeSide side,
         decimal lossPercentage,
         TradeState state,
-        decimal? marginInSats = null,
+        long? marginInSats = null,
         string? id = null,
         string uid = "default-uid",
         decimal feeRate = 0.001m)
@@ -251,7 +249,7 @@ public static class TradeFactory
         else
         {
             var marginInUsd = quantityInUsd / leverage;
-            calculatedMarginInSats = marginInUsd * (SatoshisPerBitcoin / entryPriceInUsd);
+            calculatedMarginInSats = marginInUsd * (Constants.SatoshisPerBitcoin.Value / entryPriceInUsd);
         }
 
         if (calculatedMarginInSats < 0)
@@ -280,8 +278,8 @@ public static class TradeFactory
             uid = uid,
             type = "futures",
             side = side.ToString().ToLower(),
-            margin = Math.Floor(calculatedMarginInSats),
-            pl = RoundPLInSats(plInSats),
+            margin = decimal.ToInt64(Math.Floor(calculatedMarginInSats)),
+            pl = decimal.ToInt64(RoundPLInSats(plInSats)),
             price = entryPriceInUsd,
             quantity = quantityInUsd,
             leverage = leverage,
@@ -295,9 +293,9 @@ public static class TradeFactory
             closed = tradeFlags.Closed,
             last_update_ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             opening_fee = openingFeeInSats,
-            closing_fee = Math.Round(closingFeeInSats, 0),
-            maintenance_margin = Math.Round(maintenanceMarginInSats, 0),
-            sum_carry_fees = 0m,
+            closing_fee = closingFeeInSats,
+            maintenance_margin = decimal.ToInt64(Math.Round(maintenanceMarginInSats, 0)),
+            sum_carry_fees = 0L,
         };
     }
 
@@ -322,7 +320,7 @@ public static class TradeFactory
             throw new ArgumentOutOfRangeException(nameof(marginInSats), "Margin must be greater than or equal to 0");
         }
 
-        var marginNormalized = marginInSats / (quantityInUsd * SatoshisPerBitcoin);
+        var marginNormalized = marginInSats / (quantityInUsd * Constants.SatoshisPerBitcoin.Value);
         decimal inverseLiquidationPrice;
 
         if (side == TradeSide.Buy)
@@ -342,14 +340,14 @@ public static class TradeFactory
         return 1 / inverseLiquidationPrice;
     }
 
-    private static decimal CalculateOpeningFeeInSats(decimal quantityInUsd, decimal entryPriceInUsd, decimal feeRate)
+    private static long CalculateOpeningFeeInSats(decimal quantityInUsd, decimal entryPriceInUsd, decimal feeRate)
     {
-        return Math.Floor((quantityInUsd / entryPriceInUsd) * feeRate * SatoshisPerBitcoin);
+        return decimal.ToInt64(Math.Floor((quantityInUsd / entryPriceInUsd) * feeRate * Constants.SatoshisPerBitcoin.Value));
     }
 
-    private static decimal CalculateClosingFeeInSats(decimal quantityInUsd, decimal exitPriceInUsd, decimal feeRate)
+    private static long CalculateClosingFeeInSats(decimal quantityInUsd, decimal exitPriceInUsd, decimal feeRate)
     {
-        return Math.Floor((quantityInUsd / exitPriceInUsd) * feeRate * SatoshisPerBitcoin);
+        return decimal.ToInt64(Math.Floor((quantityInUsd / exitPriceInUsd) * feeRate * Constants.SatoshisPerBitcoin.Value));
     }
 
     private static decimal RoundLiquidationPriceInUsd(decimal liquidationPriceInUsd)
