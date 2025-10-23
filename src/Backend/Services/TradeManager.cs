@@ -164,7 +164,6 @@ public class TradeManager : ITradeManager
             if (data.LastPrice <= 0)
             {
                 logger?.LogWarning("Invalid last price {Price}$", data.LastPrice);
-                logger?.LogWarning("Invalid last price {Price}$", data.LastPrice);
                 return;
             }
 
