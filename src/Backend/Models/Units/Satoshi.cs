@@ -17,7 +17,7 @@ public readonly struct Satoshi
 
     public static implicit operator Satoshi(long value) => new(value);
 
-    // Safe arithmetic operators (no division!)
+    // Safe arithmetic operators (no division)
     public static Satoshi operator +(Satoshi left, Satoshi right) => new(left._value + right._value);
 
     public static Satoshi operator -(Satoshi left, Satoshi right) => new(left._value - right._value);

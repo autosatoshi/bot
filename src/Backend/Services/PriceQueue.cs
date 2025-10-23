@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using AutoBot.Models;
 using AutoBot.Models.LnMarkets;
+using AutoBot.Models.Units;
 using Microsoft.Extensions.Options;
 
 namespace AutoBot.Services;
@@ -22,7 +23,7 @@ public class PriceQueue : IPriceQueue, IDisposable
 
         _updateLoop = Task.Run(async () =>
         {
-            decimal lastPrice = 0;
+            Dollar lastPrice = 0;
             var lastIteration = DateTime.MinValue;
 
             while (!_exitTokenSource.IsCancellationRequested)
