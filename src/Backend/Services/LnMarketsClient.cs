@@ -35,7 +35,7 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecuteGetRequestAsync<List<FuturesTradeModel>>(_client, key, passphrase, secret, path, queryParams, nameof(GetRunningTrades), _logger) ?? [];
     }
 
-    public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, long amountInSats)
+    public async Task<bool> AddMargin(string key, string passphrase, string secret, string id, Satoshi amountInSats)
     {
         const string path = "/v2/futures/add-margin";
         var requestBody = JsonSerializer.Serialize(new { id = id, amount = amountInSats });
