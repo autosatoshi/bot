@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using AutoBot.Models.Units;
 
 namespace AutoBot.Models;
 
@@ -46,7 +45,7 @@ public class LnMarketsOptions
     public int MaxLossInPercent { get; set; } = -50;
 
     [Range(0, int.MaxValue)]
-    public Satoshi? TargetNetPLInSats { get; set; } = null;
+    public long? TargetNetPLInSats { get; set; } = null;
 
     // WebSocket Configuration
     [Range(1, int.MaxValue)]
