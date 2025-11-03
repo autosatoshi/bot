@@ -28,6 +28,13 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecuteGetRequestAsync<UserModel>(_client, key, passphrase, secret, path, queryParams, nameof(GetUser), _logger);
     }
 
+    public async Task<IReadOnlyList<FuturesTradeModel>> GetOpenTrades(string key, string passphrase, string secret)
+    {
+        const string path = "/v2/futures";
+        const string queryParams = "type=open";
+        return await ExecuteGetRequestAsync<List<FuturesTradeModel>>(_client, key, passphrase, secret, path, queryParams, nameof(GetOpenTrades), _logger) ?? [];
+    }
+
     public async Task<IReadOnlyList<FuturesTradeModel>> GetRunningTrades(string key, string passphrase, string secret)
     {
         const string path = "/v2/futures";
@@ -49,11 +56,11 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(SwapUsdToBtc), _logger);
     }
 
-    public async Task<bool> CreateNewTrade(string key, string passphrase, string secret, decimal exitPriceInUsd, int leverage, double quantityInUsd)
+    public async Task<bool> CreateLimitBuyOrder(string key, string passphrase, string secret, decimal price, decimal takeprofit, int leverage, double quantity)
     {
         const string path = "/v2/futures";
-        var requestBody = JsonSerializer.Serialize(new { side = "b", type = "m", takeprofit = exitPriceInUsd, leverage = leverage, quantity = quantityInUsd });
-        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(CreateNewTrade), _logger);
+        var requestBody = JsonSerializer.Serialize(new { side = "b", type = "l", price = price, takeprofit = takeprofit, leverage = leverage, quantity = quantity });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(CreateLimitBuyOrder), _logger);
     }
 
     private static async Task<bool> ExecutePostRequestAsync(HttpClient client, string key, string passphrase, string secret, string path, string requestBody, string operationName, ILogger? logger = null)

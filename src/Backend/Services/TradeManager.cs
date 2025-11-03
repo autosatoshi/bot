@@ -167,6 +167,12 @@ public class TradeManager : ITradeManager
                 return;
             }
 
+            if (user.balance <= 0)
+            {
+                logger?.LogDebug("No available margin");
+                return;
+            }
+
             var runningTrades = await client.GetRunningTrades(options.Key, options.Passphrase, options.Secret);
             if (runningTrades.Count >= options.MaxRunningTrades)
             {
@@ -175,10 +181,18 @@ public class TradeManager : ITradeManager
             }
 
             Dollar quantizedPriceInUsd = GetQuantizedPrice(data.LastPrice.Value, options.Factor);
-            var runningTrade = runningTrades.FirstOrDefault(x => GetQuantizedPrice(x.price.Value, options.Factor) == quantizedPriceInUsd);
+            var runningTrade = runningTrades.FirstOrDefault(x => x.price.Value == quantizedPriceInUsd);
             if (runningTrade != null)
             {
                 logger?.LogDebug("A running trade with the same quantized price already exists ({Price}$ -> {QuantizedPrice}$)", data.LastPrice, quantizedPriceInUsd);
+                return;
+            }
+
+            var openTrades = await client.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
+            var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
+            if (openTrade != null)
+            {
+                logger?.LogDebug("An open trade with the same quantized price already exists ({Price}$ -> {QuantizedPrice}$)", data.LastPrice, quantizedPriceInUsd);
                 return;
             }
 
@@ -214,7 +228,7 @@ public class TradeManager : ITradeManager
             Dollar exitPriceInUsd;
             if (!options.TargetNetPLInSats.HasValue)
             {
-                exitPriceInUsd = data.LastPrice + options.Takeprofit;
+                exitPriceInUsd = quantizedPriceInUsd + options.Takeprofit;
             }
             else
             {
@@ -222,7 +236,7 @@ public class TradeManager : ITradeManager
                 logger?.LogDebug("User fee tier {FeeTier} mapped to fee rate {FeeRate:P}", user.fee_tier, feeRate);
 
                 Satoshi targetNetPLInSats = options.TargetNetPLInSats.Value;
-                decimal adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, data.LastPrice.Value, options.Leverage, feeRate, targetNetPLInSats.Value, TradeSide.Buy);
+                decimal adjustedExitPriceInUsd = TradeFactory.CalculateExitPriceForTargetNetPL(options.Quantity, quantizedPriceInUsd.Value, options.Leverage, feeRate, targetNetPLInSats.Value, TradeSide.Buy);
                 Dollar roundedExitPriceInUsd = Math.Ceiling(adjustedExitPriceInUsd * 2) / 2; // Round up to nearest 0.5 for LN Markets compatibility
                 logger?.LogDebug("Adjusted exit price to {AdjustedExitPrice}$ for a net P&L of {TargetProfit} sats", roundedExitPriceInUsd, targetNetPLInSats);
 
@@ -251,13 +265,13 @@ public class TradeManager : ITradeManager
                 }
             }
 
-            if (!await client.CreateNewTrade(options.Key, options.Passphrase, options.Secret, exitPriceInUsd.Value, options.Leverage, options.Quantity))
+            if (!await client.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity))
             {
-                logger?.LogError("Failed to create new trade:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", data.LastPrice, exitPriceInUsd, options.Leverage, options.Quantity);
+                logger?.LogError("Failed to create limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
                 return;
             }
 
-            logger?.LogInformation("Successfully created new trade:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", data.LastPrice, exitPriceInUsd, options.Leverage, options.Quantity);
+            logger?.LogInformation("Successfully created limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
         }
         catch (Exception ex)
         {

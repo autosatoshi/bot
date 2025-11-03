@@ -40,12 +40,13 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateNewTrade_WhenSuccessful_ShouldReturnTrue()
+    public async Task CreateLimitBuyOrder_WhenSuccessful_ShouldReturnTrue()
     {
         // Arrange
         var key = "test-key";
         var passphrase = "test-passphrase";
         var secret = "test-secret";
+        var price = 50000m;
         var takeprofit = 51000m;
         var leverage = 2;
         var quantity = 1.5;
@@ -75,7 +76,7 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
             .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _client.CreateNewTrade(key, passphrase, secret, takeprofit, leverage, quantity);
+        var result = await _client.CreateLimitBuyOrder(key, passphrase, secret, price, takeprofit, leverage, quantity);
 
         // Assert
         result.Should().BeTrue();
@@ -92,8 +93,9 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
 
         // Verify request body content
         capturedRequestBody.Should().NotBeNull();
-        capturedRequestBody.Should().Contain("\"type\":\"m\"");
+        capturedRequestBody.Should().Contain("\"type\":\"l\""); // Limit order
         capturedRequestBody.Should().Contain("\"side\":\"b\"");
+        capturedRequestBody.Should().Contain($"\"price\":{price.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
         capturedRequestBody.Should().Contain($"\"takeprofit\":{takeprofit.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
         capturedRequestBody.Should().Contain($"\"leverage\":{leverage}");
         capturedRequestBody.Should().Contain($"\"quantity\":{quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
