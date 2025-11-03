@@ -199,7 +199,9 @@ public class TradeManager : ITradeManager
             if (options.EnableBatching)
             {
                 var batchQuantizedPrice = GetQuantizedPrice(data.LastPrice, options.BatchFactor);
-                var tradesInCurrentBatch = runningTrades.Count(x => GetQuantizedPrice(x.price, options.BatchFactor) == batchQuantizedPrice);
+                var openTradesInBatch = openTrades.Count(x => GetQuantizedPrice(x.price, options.BatchFactor) == batchQuantizedPrice);
+                var runningTradesInBatch = runningTrades.Count(x => GetQuantizedPrice(x.price, options.BatchFactor) == batchQuantizedPrice);
+                var tradesInCurrentBatch = openTradesInBatch + runningTradesInBatch;
                 if (tradesInCurrentBatch >= options.MaxTradesPerBatch)
                 {
                     logger?.LogDebug("Maximum trades reached for batch at {BatchPrice}$ ({TradesInBatch}/{MaxTradesPerBatch})", batchQuantizedPrice, tradesInCurrentBatch, options.MaxTradesPerBatch);
