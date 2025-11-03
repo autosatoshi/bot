@@ -249,8 +249,8 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            var availableMarginInSats = user.balance;
-            Satoshi requiredMarginInSats = decimal.ToInt64(Math.Ceiling(Constants.SatoshisPerBitcoin.Value / data.LastPrice.Value * options.Quantity / options.Leverage));
+            Satoshi availableMarginInSats = user.balance;
+            Satoshi requiredMarginInSats = decimal.ToInt64(Math.Ceiling(Constants.SatoshisPerBitcoin.Value / quantizedPriceInUsd * options.Quantity / options.Leverage));
             if (requiredMarginInSats > availableMarginInSats)
             {
                 logger?.LogWarning("Insufficient margin: required {RequiredMargin} sats | available {AvailableMargin} sats", requiredMarginInSats, availableMarginInSats);
