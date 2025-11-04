@@ -180,7 +180,7 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            Dollar quantizedPriceInUsd = GetQuantizedPrice(data.LastPrice, options.Factor);
+            Dollar quantizedPriceInUsd = GetQuantizedPrice(data.LastPrice.Value, options.Factor);
             if (runningTrades.Any(x => x.price == quantizedPriceInUsd))
             {
                 logger?.LogDebug("A running trade at the same price already exists ({QuantizedPrice}$)", quantizedPriceInUsd);
@@ -196,9 +196,9 @@ public class TradeManager : ITradeManager
 
             if (options.EnableBatching)
             {
-                var batchQuantizedPrice = GetQuantizedPrice(data.LastPrice, options.BatchFactor);
-                var openTradesInBatch = openTrades.Count(x => GetQuantizedPrice(x.price, options.BatchFactor) == batchQuantizedPrice);
-                var runningTradesInBatch = runningTrades.Count(x => GetQuantizedPrice(x.price, options.BatchFactor) == batchQuantizedPrice);
+                var batchQuantizedPrice = GetQuantizedPrice(data.LastPrice.Value, options.BatchFactor);
+                var openTradesInBatch = openTrades.Count(x => GetQuantizedPrice(x.price.Value, options.BatchFactor) == batchQuantizedPrice);
+                var runningTradesInBatch = runningTrades.Count(x => GetQuantizedPrice(x.price.Value, options.BatchFactor) == batchQuantizedPrice);
                 var tradesInCurrentBatch = openTradesInBatch + runningTradesInBatch;
                 if (tradesInCurrentBatch >= options.MaxTradesPerBatch)
                 {
@@ -207,24 +207,6 @@ public class TradeManager : ITradeManager
                 }
             }
 
-            Satoshi isolatedMarginInSats = runningTrades.Select(x => x.margin.Value + x.maintenance_margin.Value).Sum();
-            Satoshi availableMarginInSats = user.balance - isolatedMarginInSats;
-            Satoshi oneUsdInSats = decimal.ToInt64(Math.Round(Constants.SatoshisPerBitcoin.Value / data.LastPrice.Value));
-            if (availableMarginInSats <= oneUsdInSats)
-            {
-                logger?.LogDebug("No available margin");
-                return;
-            }
-
-            var openTrades = await client.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
-            var openTrade = openTrades.FirstOrDefault(x => GetQuantizedPrice(x.price.Value, options.Factor) == quantizedPriceInUsd);
-            if (openTrade != null)
-            {
-                logger?.LogDebug("An open trade with the same price already exists ({Price}$)", quantizedPriceInUsd);
-                return;
-            }
-
-            // Calculate exit price based on current market price (not quantized price) for market orders
             Dollar exitPriceInUsd;
             if (!options.TargetNetPLInSats.HasValue)
             {
@@ -250,7 +232,7 @@ public class TradeManager : ITradeManager
             }
 
             Satoshi availableMarginInSats = user.balance;
-            Satoshi requiredMarginInSats = decimal.ToInt64(Math.Ceiling(Constants.SatoshisPerBitcoin.Value / quantizedPriceInUsd * options.Quantity / options.Leverage));
+            Satoshi requiredMarginInSats = decimal.ToInt64(Math.Ceiling(Constants.SatoshisPerBitcoin.Value / quantizedPriceInUsd.Value * options.Quantity / options.Leverage));
             if (requiredMarginInSats > availableMarginInSats)
             {
                 logger?.LogWarning("Insufficient margin: required {RequiredMargin} sats | available {AvailableMargin} sats", requiredMarginInSats, availableMarginInSats);
@@ -266,7 +248,7 @@ public class TradeManager : ITradeManager
                 }
             }
 
-            if (!await client.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity))
+            if (!await client.CreateLimitBuyOrder(options.Key, options.Passphrase, options.Secret, quantizedPriceInUsd.Value, exitPriceInUsd.Value, options.Leverage, options.Quantity))
             {
                 logger?.LogError("Failed to create limit buy order:\n\t[price: {Price}, takeprofit: {TakeProfit}, leverage: {Leverage}, quantity: {Quantity}]", quantizedPriceInUsd, exitPriceInUsd, options.Leverage, options.Quantity);
                 return;
