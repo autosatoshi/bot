@@ -180,19 +180,17 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            Dollar quantizedPriceInUsd = GetQuantizedPrice(data.LastPrice.Value, options.Factor);
-            var runningTrade = runningTrades.FirstOrDefault(x => x.price.Value == quantizedPriceInUsd);
-            if (runningTrade != null)
+            Dollar quantizedPriceInUsd = GetQuantizedPrice(data.LastPrice, options.Factor);
+            if (runningTrades.Any(x => x.price == quantizedPriceInUsd))
             {
-                logger?.LogDebug("A running trade with the same quantized price already exists ({Price}$ -> {QuantizedPrice}$)", data.LastPrice, quantizedPriceInUsd);
+                logger?.LogDebug("A running trade at the same price already exists ({QuantizedPrice}$)", quantizedPriceInUsd);
                 return;
             }
 
             var openTrades = await client.GetOpenTrades(options.Key, options.Passphrase, options.Secret);
-            var openTrade = openTrades.FirstOrDefault(x => x.price == quantizedPriceInUsd);
-            if (openTrade != null)
+            if (openTrades.Any(x => x.price == quantizedPriceInUsd))
             {
-                logger?.LogDebug("An open trade with the same quantized price already exists ({Price}$ -> {QuantizedPrice}$)", data.LastPrice, quantizedPriceInUsd);
+                logger?.LogDebug("An open trade at the same price already exists ({QuantizedPrice}$)", quantizedPriceInUsd);
                 return;
             }
 
