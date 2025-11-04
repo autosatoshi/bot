@@ -257,11 +257,12 @@ public class TradeManager : ITradeManager
                 return;
             }
 
-            foreach (var oldTrade in openTrades)
+            // Cancel all open trades to avoid stale orders before creating new one
+            foreach (var trade in openTrades)
             {
-                if (!await client.Cancel(options.Key, options.Passphrase, options.Secret, oldTrade.id))
+                if (!await client.Cancel(options.Key, options.Passphrase, options.Secret, trade.id))
                 {
-                    logger?.LogWarning("Failed to cancel trade {TradeId}", oldTrade.id);
+                    logger?.LogWarning("Failed to cancel trade {TradeId}", trade.id);
                 }
             }
 

@@ -56,6 +56,13 @@ public class LnMarketsClient : IMarketplaceClient
         return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(SwapUsdToBtc), _logger);
     }
 
+    public async Task<bool> Cancel(string key, string passphrase, string secret, string id)
+    {
+        const string path = "/v2/futures/cancel";
+        var requestBody = JsonSerializer.Serialize(new { id = id });
+        return await ExecutePostRequestAsync(_client, key, passphrase, secret, path, requestBody, nameof(Cancel), _logger);
+    }
+
     public async Task<bool> CreateLimitBuyOrder(string key, string passphrase, string secret, decimal price, decimal takeprofit, int leverage, double quantity)
     {
         const string path = "/v2/futures";

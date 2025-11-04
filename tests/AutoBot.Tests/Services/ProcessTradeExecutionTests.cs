@@ -487,4 +487,87 @@ public class ProcessTradeExecutionTests
         Assert.Equal(expectedOpeningFee, trade.opening_fee);
         Assert.Equal(expectedClosingFee, trade.closing_fee);
     }
+
+    [Fact]
+    public async Task ProcessTradeExecution_WithOpenTrades_ShouldCancelAllBeforeCreatingNew()
+    {
+        // Arrange
+        // Create multiple open trades at different prices to be cancelled
+        var openTrades = new List<FuturesTradeModel>
+        {
+            TradeFactory.CreateTrade(1m, 49000m, 2m, TradeSide.Buy, 49000m, TradeState.Open, "open-trade-1"),
+            TradeFactory.CreateTrade(1m, 51000m, 2m, TradeSide.Buy, 51000m, TradeState.Open, "open-trade-2"),
+            TradeFactory.CreateTrade(1m, 52000m, 2m, TradeSide.Buy, 52000m, TradeState.Open, "open-trade-3")
+        };
+
+        var emptyRunningTrades = new List<FuturesTradeModel>();
+
+        _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyRunningTrades);
+        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(openTrades);
+        _mockClient.Setup(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
+
+        // Assert - Should cancel all open trades before creating new one
+        _mockClient.Verify(x => x.Cancel(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "open-trade-1"), Times.Once);
+        _mockClient.Verify(x => x.Cancel(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "open-trade-2"), Times.Once);
+        _mockClient.Verify(x => x.Cancel(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "open-trade-3"), Times.Once);
+        _mockClient.Verify(x => x.CreateLimitBuyOrder(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 50000m, 52000m, _defaultOptions.Leverage, _defaultOptions.Quantity), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessTradeExecution_WithFailedCancellation_ShouldStillCreateNewTrade()
+    {
+        // Arrange
+        var openTrades = new List<FuturesTradeModel>
+        {
+            TradeFactory.CreateTrade(1m, 49000m, 2m, TradeSide.Buy, 49000m, TradeState.Open, "failing-trade")
+        };
+
+        var emptyRunningTrades = new List<FuturesTradeModel>();
+
+        _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyRunningTrades);
+        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(openTrades);
+        _mockClient.Setup(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), "failing-trade"))
+            .ReturnsAsync(false); // Simulate cancellation failure
+        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
+
+        // Assert - Should attempt cancellation and still create new trade even if cancellation fails
+        _mockClient.Verify(x => x.Cancel(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, "failing-trade"), Times.Once);
+        _mockClient.Verify(x => x.CreateLimitBuyOrder(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 50000m, 52000m, _defaultOptions.Leverage, _defaultOptions.Quantity), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessTradeExecution_WithNoOpenTrades_ShouldNotCallCancel()
+    {
+        // Arrange
+        var emptyRunningTrades = new List<FuturesTradeModel>();
+        var emptyOpenTrades = new List<FuturesTradeModel>();
+
+        _mockClient.Setup(x => x.GetRunningTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyRunningTrades);
+        _mockClient.Setup(x => x.GetOpenTrades(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(emptyOpenTrades);
+        _mockClient.Setup(x => x.CreateLimitBuyOrder(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<int>(), It.IsAny<double>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await CallProcessTradeExecution(_mockClient.Object, _defaultOptions, _defaultPriceData, _defaultUser, _mockLogger.Object);
+
+        // Assert - Should not call Cancel when no open trades exist
+        _mockClient.Verify(x => x.Cancel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _mockClient.Verify(x => x.CreateLimitBuyOrder(_defaultOptions.Key, _defaultOptions.Passphrase, _defaultOptions.Secret, 50000m, 52000m, _defaultOptions.Leverage, _defaultOptions.Quantity), Times.Once);
+    }
 }

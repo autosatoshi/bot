@@ -15,5 +15,7 @@ public interface IMarketplaceClient
 
     Task<bool> SwapUsdToBtc(string key, string passphrase, string secret, int amountInUsd);
 
+    Task<bool> Cancel(string key, string passphrase, string secret, string id);
+
     Task<bool> CreateLimitBuyOrder(string key, string passphrase, string secret, decimal price, decimal takeprofit, int leverage, double quantity);
 }

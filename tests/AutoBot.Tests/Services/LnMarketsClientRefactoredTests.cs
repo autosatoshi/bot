@@ -40,6 +40,44 @@ public sealed class LnMarketsClientRefactoredTests : IDisposable
     }
 
     [Fact]
+    public async Task Cancel_WhenSuccessful_ShouldReturnTrue()
+    {
+        // Arrange
+        var key = "test-key";
+        var passphrase = "test-passphrase";
+        var secret = "test-secret";
+        var id = "test-id";
+
+        var mockResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"success\": true}", Encoding.UTF8, "application/json")
+        };
+
+        _mockHttpMessageHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .ReturnsAsync(mockResponse);
+
+        // Act
+        var result = await _client.Cancel(key, passphrase, secret, id);
+
+        // Assert
+        result.Should().BeTrue();
+        
+        _mockHttpMessageHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req => 
+                req.Method == HttpMethod.Post &&
+                req.RequestUri!.ToString().Contains("/v2/futures/cancel")),
+            ItExpr.IsAny<CancellationToken>()
+        );
+    }
+
+    [Fact]
     public async Task CreateLimitBuyOrder_WhenSuccessful_ShouldReturnTrue()
     {
         // Arrange
